@@ -164,19 +164,35 @@ Run in Phase 1 (week 3-4):
 │  │  KNOWLEDGE   │──→│  ANALOGICAL  │──→│  CONJECTURE  │        │
 │  │  BASE        │   │  GAP         │   │  GENERATOR   │        │
 │  │  (Mathlib4   │   │  DETECTOR    │   │  (Claude/    │        │
-│  │   Algebra +  │   │  (Embedding  │   │   GPT-4 API) │        │
-│  │   own work)  │   │   + Graph)   │   │              │        │
-│  └──────────────┘   └──────────────┘   └──────────────┘        │
-│         ↑                                      │                │
-│         │           ┌──────────────┐           ↓                │
-│  ┌──────────────┐   │  CURIOSITY   │   ┌──────────────┐        │
-│  │  NOVELTY     │   │  SCORER      │   │  PROOF       │        │
-│  │  CHECKER     │   │  (3 variants │   │  ENGINE      │        │
-│  │  (normalize  │   │   compared)  │   │  (Local 7B + │        │
-│  │  +defEq+emb) │   └──────────────┘   │   API heavy) │        │
-│  └──────────────┘          ↑           └──────────────┘        │
-│         ↑                  │                  │                 │
-│         │                  │                  ↓                 │
+│  │   Algebra    │   │  (NetworkX   │   │   GPT-4 API) │        │
+│  │   dep graph  │   │   dep graph  │   │              │        │
+│  │   + embed)   │   │   + embed)   │   └──────┬───────┘        │
+│  └──────┬───────┘   └──────────────┘          │                │
+│         │                                      ↓                │
+│         │                              ┌──────────────┐        │
+│         │                              │  COUNTER-    │        │
+│         │           ┌──────────────┐   │  EXAMPLE     │        │
+│         │           │  CURIOSITY   │   │  FILTER      │        │
+│         │           │  SCORER      │   │  (small-case │        │
+│         │           │  (3 variants │   │   test)      │        │
+│         │           │   compared)  │   └──────┬───────┘        │
+│         │           └──────────────┘          │                │
+│         │                  ↑           pass?  ↓                │
+│         │                  │           ┌──────────────┐        │
+│  ┌──────────────┐          │           │  PROOF       │        │
+│  │  NOVELTY     │          │           │  ENGINE      │        │
+│  │  CHECKER     │          │           │  (Local 7B + │        │
+│  │  (normalize  │          │           │   API heavy) │        │
+│  │  +defEq+emb) │          │           └──────┬───────┘        │
+│  └──────┬───────┘          │                  │                │
+│         ↑                  │           fail?  ↓ ok?            │
+│         │                  │           ┌──────────────┐        │
+│         │                  │           │  SELF-REPAIR │        │
+│         │                  │           │  (Lean error │        │
+│         │                  │           │   → LLM fix  │        │
+│         │                  │           │   → retry)   │        │
+│         │                  │           └──────┬───────┘        │
+│         │                  │                  │                │
 │         └──────────────────┼──────── VERIFIER (Lean 4)         │
 │                            │                                    │
 │  ┌─────────────────────────┴──────────────────────────────── ┐  │
@@ -190,7 +206,39 @@ Run in Phase 1 (week 3-4):
 Infra: Python orchestrator ←→ Lean 4 (subprocess/lake)
 Local: Mac Mini M2 Pro (orchestration, small model inference, Lean)
 API:   DeepSeek / Claude / GPT-4 (conjecture gen, heavy proof attempts)
+Graph: NetworkX in-memory (Mathlib dependency graph, ~210K nodes)
 ```
+
+### 5.1 Knowledge Graph (NetworkX)
+
+The Mathlib dependency graph is the primary structural backbone for gap detection, not just an auxiliary view.
+
+- **Extraction**: Parse Mathlib4's `import` graph and `@[simp]`/`@[ext]` tactic annotations via `lake env printPaths` + Lean metaprogramming to extract theorem-level dependencies.
+- **Storage**: NetworkX `DiGraph` in-memory. Nodes = theorems/definitions/lemmas (with attributes: module, type signature, embedding vector). Edges = `uses` (theorem A's proof references lemma B).
+- **Queries for gap detection**:
+  - Analogical gaps: "For each theorem about `Group`, find structurally similar theorems about `Ring`/`Module` by comparing neighborhood topology + embedding similarity."
+  - Significance scoring: PageRank / betweenness centrality as proxy for theorem importance.
+  - Dependency impact: `len(nx.descendants(G, node))` estimates how many theorems a new result could unblock.
+- **Why not Neo4j**: ~210K nodes fits comfortably in memory. NetworkX avoids external service dependency, simplifies reproducibility (Tier 1), and is sufficient for the graph algorithms needed.
+
+### 5.2 Counter-Example Filter
+
+Before investing API compute on proof attempts, filter out likely-false conjectures:
+
+1. **Small-case instantiation**: For conjectures involving parametric types (e.g., groups of order n), test on small concrete instances (n = 1..10) using Lean's `#eval` or `decide`.
+2. **Type-specific checks**: For algebraic conjectures, test on known small structures (ℤ/2ℤ, ℤ/3ℤ, S₃, Klein four-group, etc.).
+3. **Quick tactic attempt**: Run `aesop` / `omega` / `simp` with a 5-second timeout. If it finds a counterexample or disproves the goal, discard.
+4. **Pass rate target**: Filter should eliminate ≥30% of generated conjectures to justify its compute cost. Measure in Phase 2 pilot.
+
+### 5.3 Self-Repair Loop (Proof Failure → Feedback)
+
+When a proof attempt fails, Lean 4 returns structured error messages. These are valuable signal, not just noise:
+
+1. **Error extraction**: Parse Lean compiler output for: unsolved goals, type mismatches, unknown identifiers, tactic failures.
+2. **Feedback to LLM**: Construct a repair prompt: original conjecture + attempted proof + Lean error messages + relevant Mathlib context.
+3. **Retry budget**: Up to 3 repair iterations per conjecture. Each iteration feeds the previous error back to the LLM.
+4. **Escalation**: If local 7B model fails all 3 iterations, escalate to API model for one final attempt before marking as "unresolved."
+5. **Rationale**: APOLLO (2025) demonstrated that iterative LLM + compiler feedback achieves 84.9% on miniF2F with sub-8B models. This loop is the core mechanism.
 
 ### Reproducibility Policy
 
@@ -261,6 +309,9 @@ Fully open-source intent creates tension with closed API dependency. To address 
 
 | Decision | Choice | Rationale |
 |----------|--------|-----------|
+| Knowledge graph | NetworkX in-memory (not Neo4j) | ~210K nodes fits in RAM; no external dependency; Tier 1 reproducible |
+| Counter-example filter | Small-case + quick tactic before proof | Saves API cost by filtering likely-false conjectures early |
+| Self-repair loop | 3 iterations local → 1 API escalation | APOLLO-style compiler feedback; maximizes local compute before API spend |
 | MVP gap type | Analogical (algebra) | Strongest novelty claim + rich structure in Mathlib |
 | Proof engine | Hybrid (local 7B + API) | M2 Pro constraint; cost-controlled |
 | Curiosity | 3-way comparison | Strongest paper contribution |
@@ -280,7 +331,7 @@ Fully open-source intent creates tension with closed API dependency. To address 
 | Gap detector finds only trivial gaps | Critical | Automated non-triviality criteria; calibrate against Mathlib stats | Pivot to Formalization Gaps |
 | API costs exceed budget | High | Pilot study in Phase 1; aggressive local model usage | Reduce iteration count; narrower domain |
 | Auto-formalization accuracy too low | High | Pilot in Phase 1; fallback to direct Lean generation | Skip NL intermediate step |
-| Proof success rate too low for novel conjectures | High | Start with near-known analogues; APOLLO repair loop | Focus on lemma-level discoveries |
+| Proof success rate too low for novel conjectures | High | Counter-example filter + self-repair loop (3 local + 1 API) + near-known analogues | Focus on lemma-level discoveries |
 | NeurIPS deadline missed | Medium | ICLR 2027 fallback; workshop paper option | 19-week timeline with buffers accounts for this |
 | API reproducibility gap | Medium | Version pinning, full logging, cached artifacts, 3-tier policy | Tier 3 fallback if API versions deprecated |
 | Lean 4 / Mathlib learning curve | Medium | Intermediate experience; Lean Zulip community | Budget extra time in Phase 1 |
