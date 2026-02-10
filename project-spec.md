@@ -132,6 +132,15 @@ Replace "3/4 indicators declining for N cycles" with:
 6. N is not a fixed hyperparameter — it emerges from the statistical test.
 7. **Expected false alarm rate**: Validate via simulation on synthetic novelty curves (constant, linear decline, step decline) before deployment. Target: false positive rate < 5% on constant curves, detection power > 80% on step declines of ≥30%.
 
+**Recovery action priority order** (strictly sequential — do NOT skip to later steps):
+
+1. **Switch gap type** (e.g., analogical → formalization gaps) — explores structurally different territory
+2. **Expand domain scope** (e.g., algebra → algebra + analysis) — increases gap inventory
+3. **Adjust curiosity weights** — ONLY with hard constraints: `significance >= S_min` (floor, never overridden), `novelty_weight <= 0.5` (cap, prevents reward-hacking on embedding distance)
+4. **Alert human** — if steps 1-3 fail to recover within 2 additional staleness windows
+
+This ordering prevents the dangerous coupling identified by systems analysis: increasing novelty weight (step 3) can trigger reward-hacking where the system optimizes for high embedding distance rather than mathematical significance. By making weight adjustment a last resort with hard constraints, the recovery mechanism cannot cause the novelty-collapse failure mode.
+
 ### P1-3: Compute Cost Pilot
 
 Run in Phase 1 (week 2-3):
@@ -237,6 +246,10 @@ The Mathlib dependency graph is the primary structural backbone for gap detectio
   - Analogical gaps: "For each theorem about `Group`, find structurally similar theorems about `Ring`/`Module` by comparing neighborhood topology + embedding similarity."
   - Significance scoring: PageRank / betweenness centrality as proxy for theorem importance.
   - Dependency impact: `len(nx.descendants(G, node))` estimates how many theorems a new result could unblock.
+- **Seed gap sources** (bootstrap for cold-start): In addition to automated gap detection, seed the initial gap inventory with:
+  - Mathlib open PRs tagged `awaiting-review` or `WIP` in algebra modules — these represent gaps the community has already identified but not yet closed.
+  - `TODO` / `sorry` annotations in Mathlib source — explicitly marked incomplete proofs or missing results.
+  - These seeds provide known-valuable targets for validating the discovery loop before relying solely on automated gap detection.
 - **Why not Neo4j**: ~210K nodes fits comfortably in memory. NetworkX avoids external service dependency, simplifies reproducibility (Tier 1), and is sufficient for the graph algorithms needed.
 
 ### 5.2 Counter-Example Filter
@@ -279,7 +292,7 @@ Fully open-source intent creates tension with closed API dependency. To address 
 
 ### Phase 1: Foundation + Go/No-Go (Weeks 1-5, Feb 10 - Mar 14)
 
-- **Week 1-2**: Setup Lean 4 + Mathlib4 algebra subset; Python orchestrator skeleton; Mathlib graph + embedding extraction
+- **Week 1-2**: Setup Lean 4 + Mathlib4 algebra subset; Python orchestrator skeleton; Mathlib graph + embedding extraction; **count post-2024-08 algebra theorems** in Mathlib (validates that enough theorems exist after the cutoff for the rediscovery experiment — if <30, expand domain or adjust cutoff)
 - **Week 3-4**: Implement Analogical Gap detector for algebra (group ↔ ring ↔ module analogies); compute cost pilot (10 gaps) + auto-formalization pilot (20 theorems)
 - **Week 5**: Go/no-go evaluation against normalized criteria (detection rate, top-20 precision)
   - **Go** → Phase 2
@@ -290,6 +303,7 @@ Fully open-source intent creates tension with closed API dependency. To address 
 ### Phase 2: Core Loop (Weeks 6-9, Mar 15 - Apr 11)
 
 - **Week 6-7**: Conjecture generator (LLM → Lean 4 statement); proof engine (local 7B + API fallback); counter-example filter
+- **Week 7 checkpoint**: At least 1 full end-to-end discovery cycle completed (gap detection → conjecture → proof → verification → novelty check). This validates R1 loop viability before investing in full integration. If not achieved by end of Week 7, diagnose the bottleneck before proceeding.
 - **Week 8-9**: Verification pipeline + multi-layer novelty checker + self-repair loop; full loop integration
 - **Milestone**: System completes 10+ successful discovery cycles autonomously
 - **Parallel**: Begin paper introduction + related work drafting in evenings/weekends
@@ -346,8 +360,24 @@ If the system has NOT completed 10+ discovery cycles by end of Week 9:
 | Data leakage | Cutoff-based + 20-trial Wilson CI memorization test | Statistically robust contamination detection |
 | Staleness | CUSUM + Mann-Whitney + autocorrelation + Holm-Bonferroni | Handles temporal dependence and multiple testing |
 | Novelty check | Normalize → defEq → bi-implication → LLM (4 layers) | Reduces false negatives from defEq-only approach |
-| Contribution emphasis | Discovery results | System is means, discoveries are the measure |
+| Contribution emphasis | Contribution Ladder (L1-L4) | Discovery results are primary goal; system contribution is fallback (see Section 7.1) |
 | Open source | Full (code + data + scripts) + reproducibility tiers | API dependence managed via version pinning, logging, cached artifacts |
+
+### 7.1 Contribution Ladder
+
+The paper contribution is not binary (systems vs. discovery). Define four levels with clear criteria. Default target is L2; L3+ is upside. L1 is fallback.
+
+| Level | Content | Requirements | Venue viability |
+|-------|---------|-------------|-----------------|
+| **L1** (minimum) | Gap detection methodology + curiosity framework for formal knowledge bases | System runs end-to-end | Workshop paper |
+| **L2** (solid) | L1 + rediscovery experiment showing curiosity-driven > random | Statistically significant difference (Fisher's exact, p < 0.05) | NeurIPS/ICLR main |
+| **L3** (strong) | L2 + at least 1 non-trivial novel theorem submitted to Mathlib | Mathlib PR submitted; automated non-triviality criteria passed | NeurIPS/ICLR main (strong accept) |
+| **L4** (exceptional) | L3 + multiple novel theorems + autonomous exploration dynamics evidence | Long-run data (1K+ cycles); staleness/recovery analysis | Best paper candidate |
+
+**Decision rules**:
+- If Phase 3 results achieve L2 → submit to NeurIPS 2026
+- If only L1 achieved by Week 12 → submit to NeurIPS workshop + plan ICLR 2027 full paper at L2+
+- If L3+ achieved → emphasize discoveries in paper; system is supporting contribution
 
 ---
 
