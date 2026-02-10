@@ -22,7 +22,7 @@ Generated from interview on 2026-02-10.
 | Lean 4 experience | Intermediate | Phase 1 feasible but expect learning curve on Mathlib internals |
 | Proof Engine | Hybrid: local small models + API for complex proofs | Cost-conscious; most operations local, API only when needed |
 | Go/No-Go evaluation | Automated metrics (no math expert access) | Must design quantitative criteria that don't require mathematical expertise |
-| Timeline | Now (Feb 2026), full-time | NeurIPS 2026 target (~May deadline), fallback ICLR 2027 (~Sep) |
+| Timeline | Now (Feb 2026), full-time | NeurIPS 2026 target (est. May 15 deadline), fallback ICLR 2027 (~Sep) |
 | MVP gap type | Analogical Gap (algebra domain) | Focus on group/ring/module structure analogies in Mathlib |
 | Curiosity function | Multiple formulations compared via ablation | Linear combination, information gain, compression progress |
 | Data leakage mitigation | Cutoff-based theorem selection | Use only theorems added after LLM training data cutoff |
@@ -44,8 +44,15 @@ Generated from interview on 2026-02-10.
 
 - **Autonomous**: Define as "human intervention frequency." Metric: number of human decisions per 100 discovery cycles. Target: 0 during normal operation (human intervenes only on staleness alerts).
 - **Divergent**: Define as "objective-free exploration." The system selects its own targets from a curiosity function — no human-specified research question. Note: hyperparameters (α,β,γ) are meta-parameters of the exploration strategy, not research objectives. Analogous to how ε in ε-greedy is not a task specification.
-- **First**: Scope the claim precisely: "first system combining autonomous problem-finding with formal verification in mathematics." Acknowledge partial autonomy in Kosmos, AI Scientist. The differentiator is the closed loop: gap detection → conjecture → proof → verification → knowledge base update, all without human-specified objectives.
+- **First**: Scope the claim precisely: "**to our knowledge**, the first system combining autonomous problem-finding with formal verification in mathematics." Acknowledge partial autonomy in Kosmos, AI Scientist. The differentiator is the closed loop: gap detection → conjecture → proof → verification → knowledge base update, all without human-specified objectives.
 - **Comparison table**: Add citation for each cell. Replace subjective Yes/No with measurable properties. Add a row for "human decisions per discovery cycle."
+
+**Claim-Safety Language Policy** (applies to all documents and the paper):
+- All novelty claims MUST be prefixed with "to our knowledge" or "to the best of our knowledge."
+- "Autonomous" always qualified: "autonomous with respect to problem selection" — NOT "fully autonomous" (hyperparameters are human-set).
+- "Discovery" reserved for results classified as Novel by the novelty checker AND verified by Lean. All other outputs are "results" or "rediscoveries."
+- "First" never used in isolation. Always: "first [specific scope] to our knowledge, as of [date]."
+- These constraints apply to the paper title, abstract, introduction, and conclusion.
 
 ### P0-2: Rediscovery Experiment — Data Leakage
 
@@ -102,6 +109,17 @@ Add a multi-layered equivalence check (defEq alone is too strict and produces fa
 3. **Layer 3 — Semantic near-match**: If not defEq but embedding similarity >0.90 → attempt to prove `T_new ↔ T_existing` (or `T_new → T_existing ∧ T_existing → T_new`) using automated tactics (aesop, simp). If bi-implication proven → Duplicate (isomorphic result).
 4. **Layer 4 — LLM comparison**: For remaining high-similarity pairs (>0.85), use LLM to assess whether theorems are equivalent up to renaming, reordering, or trivial reformulation.
 5. **Triviality**: Replace line-count heuristic with composite score: {tactic_count, max_tactic_depth, unique_lemmas_used, proof_term_size}
+
+**Precision/Recall Evaluation Protocol** (run in Phase 3 or ICLR fallback):
+1. Construct a ground-truth test set: take 50 Mathlib algebra theorems and create variants:
+   - 15 exact duplicates (should be caught → tests recall)
+   - 15 semantically equivalent reformulations (variable renaming, argument reordering, definition unfolding — should be caught → tests recall on hard cases)
+   - 10 genuinely distinct but structurally similar theorems (should NOT be caught → tests precision)
+   - 10 trivial instantiations of general results (boundary case)
+2. Run the 4-layer novelty checker on all 50 variants against the original Mathlib.
+3. Report: precision, recall, F1, and per-layer catch rate (which layer caught which duplicates).
+4. **Target**: Recall ≥ 85% (miss ≤15% of duplicates), Precision ≥ 80% (≤20% false duplicate flags).
+5. If targets not met, tune embedding similarity thresholds and bi-implication tactic timeout.
 
 ### P1-2: Staleness Detection — Statistical Rigor
 
@@ -257,50 +275,59 @@ Fully open-source intent creates tension with closed API dependency. To address 
 
 ## 6. Revised Timeline (NeurIPS 2026 Target)
 
-### Phase 1: Foundation + Go/No-Go (Weeks 1-6, Feb-mid Mar 2026)
+**NeurIPS 2026 estimated deadline: May 15, 2026** (based on 2025 pattern; not officially announced as of Feb 2026). Monitor [neurips.cc](https://neurips.cc) for confirmation. Start date: Feb 10, 2026 → 13.5 weeks to deadline.
+
+### Phase 1: Foundation + Go/No-Go (Weeks 1-5, Feb 10 - Mar 14)
 
 - **Week 1-2**: Setup Lean 4 + Mathlib4 algebra subset; Python orchestrator skeleton; Mathlib graph + embedding extraction
-- **Week 3-4**: Implement Analogical Gap detector for algebra (group ↔ ring ↔ module analogies)
-- **Week 4-5**: Compute cost pilot (10 gaps) + auto-formalization pilot (20 theorems)
-- **Week 5-6**: Go/no-go evaluation against normalized criteria (detection rate, top-20 precision)
+- **Week 3-4**: Implement Analogical Gap detector for algebra (group ↔ ring ↔ module analogies); compute cost pilot (10 gaps) + auto-formalization pilot (20 theorems)
+- **Week 5**: Go/no-go evaluation against normalized criteria (detection rate, top-20 precision)
   - **Go** → Phase 2
-  - **No-go** → Pivot to Formalization Gaps, re-evaluate in 2 weeks
+  - **No-go** → Pivot to Formalization Gaps, re-evaluate in 2 weeks (triggers ICLR fallback)
 
-**Buffer**: 1 week added vs. original. Lean/Mathlib setup and embedding extraction are the highest-uncertainty tasks in the project; underestimating them would cascade into every subsequent phase.
+**Compression vs. previous**: Merged pilot studies into Week 3-4 (run concurrently with gap detector development). This is the only phase that cannot be shortened further — Lean/Mathlib setup is irreducible.
 
-### Phase 2: Core Loop (Weeks 7-11, mid Mar-mid Apr 2026)
+### Phase 2: Core Loop (Weeks 6-9, Mar 15 - Apr 11)
 
-- **Week 7-8**: Conjecture generator (LLM → Lean 4 statement); proof engine (local 7B + API fallback)
-- **Week 8-9**: Verification pipeline (Lean 4 type-check, no sorry/admit); novelty checker (multi-layer)
-- **Week 10-11**: Full loop integration; first end-to-end discovery cycles
+- **Week 6-7**: Conjecture generator (LLM → Lean 4 statement); proof engine (local 7B + API fallback); counter-example filter
+- **Week 8-9**: Verification pipeline + multi-layer novelty checker + self-repair loop; full loop integration
 - **Milestone**: System completes 10+ successful discovery cycles autonomously
+- **Parallel**: Begin paper introduction + related work drafting in evenings/weekends
 
-**Buffer**: 1 week added. Integration of Python ↔ Lean bridge + API orchestration has high coupling risk.
+### Phase 3: Evaluation (Weeks 10-12, Apr 12 - May 2)
 
-### Phase 3: Curiosity + Evaluation (Weeks 12-16, mid Apr-mid May 2026)
-
-- **Week 12-13**: Implement 3 curiosity formulations + staleness detection (CUSUM with autocorrelation handling)
-- **Week 13-14**: Rediscovery experiment (cutoff-based, with memorization pre-test)
-- **Week 14-15**: Ablation studies; novel discovery extended run
-- **Week 15-16**: Results analysis, statistical validation, reproducibility artifact packaging
+- **Week 10**: Implement 3 curiosity formulations + staleness detection; begin rediscovery experiment
+- **Week 11**: Ablation studies; novel discovery extended run
+- **Week 12**: Results analysis, statistical validation, reproducibility artifact packaging
 - **Milestone**: Experimental results sufficient for paper
+- **Parallel**: Paper methods + system sections drafted alongside experiments
 
-**Buffer**: 1 week added. Statistical validation (power analysis, effect sizes, multiple testing correction) requires dedicated time separate from running experiments.
+### Phase 4: Paper (Weeks 13-14, May 3 - May 15)
 
-### Phase 4: Paper (Weeks 17-19, mid May-early Jun 2026)
+- **Week 13**: Complete paper draft (results, discussion, conclusion); figures and tables
+- **Week 14**: Revision, polish, submission by May 15
+- **Parallel writing is critical**: By start of Phase 4, introduction, related work, methods, and system sections should already be drafted from Phase 2-3 parallel writing. Phase 4 is only for results integration and polish.
 
-- **Week 17**: Figures, tables, architecture diagrams
-- **Week 18**: Paper draft (full)
-- **Week 19**: Revision, internal review, submission to NeurIPS 2026
+**Total: 14 weeks** (compressed from 19). This is aggressive but feasible given:
+- Full-time dedication
+- Parallel paper writing starting in Phase 2
+- Lean intermediate experience (no beginner learning curve)
+- ICLR 2027 fallback removes pressure to force a weak submission
 
-**Note**: Total timeline expanded from 16 to 19 weeks (+3 weeks buffer). This is more realistic for a project combining Lean/Mathlib development, LLM integration, and rigorous statistical evaluation. If NeurIPS deadline is earlier than expected, Phase 4 can compress by parallelizing draft writing with late Phase 3 experiments.
+### Decision point: Week 9 (Apr 11)
 
-### Fallback: If NeurIPS deadline missed → continue to ICLR 2027
+If the system has NOT completed 10+ discovery cycles by end of Week 9:
+- **Evaluate honestly**: Is NeurIPS submission viable with remaining 5 weeks?
+- **If no** → Switch to ICLR 2027 target. Use extra 4 months for deeper experiments and second gap type.
+- **If yes** → Continue to Phase 3-4 at full speed.
+
+### Fallback: ICLR 2027 (estimated deadline Sep 2026)
 
 - Add Generalization Gaps (second gap type)
-- Extended novel discovery runs
+- Extended novel discovery runs (10K+ iterations)
 - Deeper ablation analysis
 - Staleness simulation validation study
+- Novelty checker precision/recall evaluation
 - Submit by Sep 2026
 
 ---
@@ -339,10 +366,25 @@ Fully open-source intent creates tension with closed API dependency. To address 
 
 ---
 
-## 9. Open Items
+## 9. Failure Taxonomy
 
-1. Identify DeepSeek-Prover-V2 training data cutoff date (needed for P0-2)
+The system can fail in ways beyond "proof didn't compile." Each failure mode requires specific detection and mitigation:
+
+| Failure Mode | Description | Detection | Mitigation |
+|-------------|-------------|-----------|------------|
+| **Vacuous theorem** | Well-typed but semantically empty (e.g., `∀ x, x = x`, tautologies, trivially true by definition) | Composite triviality score; check if proof uses only `rfl`, `trivial`, `simp` with no non-trivial lemmas | Filter in counter-example stage; add "proof substance" threshold (≥2 non-trivial lemma dependencies) |
+| **Reward hacking on novelty** | System optimizes for high embedding distance rather than mathematical significance — produces "novel" but meaningless results | Monitor: high novelty score + low significance score correlation; check if generated theorems cluster in embedding space "deserts" far from any meaningful math | Cap maximum novelty weight; require minimum significance score as hard constraint, not just soft weight |
+| **Degenerate gap cycling** | System repeatedly generates variants of the same gap (e.g., same theorem with different variable names) | Repetition index in staleness detection; pairwise embedding similarity of last N conjectures | If >30% of recent conjectures have pairwise similarity >0.9, force gap-type switch or domain expansion |
+| **Proof by spurious sorry** | Self-repair loop produces proof that appears to type-check but relies on imported sorry/admit from dependencies | Post-verification scan: recursively check all referenced lemmas for sorry/admit; reject any proof chain containing them | Already specified in verifier (no sorry/admit), but must extend check to transitive dependencies |
+| **Trivial generalization** | System "generalizes" a theorem by weakening the conclusion rather than strengthening the hypothesis (makes the result less useful) | Compare information content: does the generalized version imply strictly more than the original? | Require that the new theorem implies the original as a special case (formal implication check in Lean) |
+
+---
+
+## 10. Open Items
+
+1. ~~Identify DeepSeek-Prover-V2 training data cutoff date~~ → **Partially resolved**: DeepSeek-V3-Base (which Prover-V2 is built on) has an estimated cutoff of **July 2024** ([source](https://www.knostic.ai/blog/exposing-deepseek-system-prompts)). Exact date not stated in [Prover-V2 paper](https://arxiv.org/abs/2504.21801). **Action**: Use Mathlib commits merged after **2024-08-01** as conservative cutoff for rediscovery experiment. If a more precise date is found later, adjust accordingly.
 2. Select specific local 7B model for proof attempts (candidates: DeepSeek-Prover-V2-7B, Llemma-7B)
 3. Determine LLM for conjecture generation (Claude vs GPT-4 vs Gemini — evaluate on math creativity)
 4. Set up Mathlib4 algebra module dependency graph extraction tooling
 5. Establish API budget ceiling (monthly)
+6. Confirm NeurIPS 2026 submission deadline when officially announced (estimated May 15 based on [2025 pattern](https://neurips.cc/Conferences/2025/Dates))
