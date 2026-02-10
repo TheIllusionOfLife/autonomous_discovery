@@ -30,7 +30,7 @@ Generated from interview on 2026-02-10.
 | Paper contribution focus | Discovery results themselves | System is a means; quality of discovered theorems is the measure |
 | Math domain | Algebra (groups, rings, modules, etc.) | Rich structural similarity; deep Mathlib coverage |
 | Fallback | ICLR 2027 if NeurIPS deadline missed | Allows scope adjustment without panic |
-| Openness | Fully open-source (code, data, experiment scripts) | Reproducibility is first-class |
+| Openness | Fully open-source (code, data, experiment scripts) | Reproducibility is first-class — see Reproducibility Policy below |
 
 ---
 
@@ -54,7 +54,7 @@ Generated from interview on 2026-02-10.
 **Resolution**:
 
 1. **Cutoff-based selection**: Only remove theorems added to Mathlib AFTER the training data cutoff of the LLM used. For DeepSeek-Prover-V2, identify its training data cutoff date and select theorems merged into Mathlib after that date.
-2. **Memorization pre-test**: Before the experiment, directly prompt the LLM with the theorem statement and ask it to prove it. If it succeeds with high confidence (>80% pass rate across 5 attempts), classify as "potentially memorized" and exclude or flag.
+2. **Memorization pre-test**: Before the experiment, directly prompt the LLM with the theorem statement and ask it to prove it. Run 20 attempts per theorem. Classify as "potentially memorized" if the 95% Wilson confidence interval for the pass rate has a lower bound >50%. This avoids the instability of small-sample thresholds (the previous 5-trial / 80% criterion was effectively 5/5 and statistically fragile).
 3. **Contamination analysis**: Report memorization test results as part of the paper. Show the distribution of "memorized" vs "non-memorized" theorems and their rediscovery rates separately.
 4. **Limitation**: Explicitly acknowledge that complete decontamination is impossible. Frame the experiment as "rediscovery in the presence of potential prior exposure" and argue that the curiosity function's value is in *directing* the search, not in the LLM's raw ability to prove.
 
@@ -81,7 +81,13 @@ Ablation study compares all three + random baseline. This becomes a key technica
 3. **Structural novelty**: Embedding distance from nearest existing theorem is above the Pth percentile of inter-theorem distances in the target domain
 4. **Not a direct instantiation**: The gap cannot be closed by `apply` or `exact` with a single existing lemma
 
-**Go criteria**: Gap detector identifies ≥50 gaps in the algebra domain that satisfy all 4 criteria above. If <50, iterate on gap detection heuristics. If after 2 iterations still <50, pivot to Formalization Gaps as fallback.
+**Go criteria** (normalized — not dependent on absolute count):
+
+- **Primary metric**: Detection rate ≥ 5% of scanned Mathlib algebra modules contain at least one non-trivial gap satisfying all 4 criteria above.
+- **Secondary metric**: Top-20 precision ≥ 60% — of the 20 highest-scored gaps, at least 12 pass all 4 non-triviality criteria when verified independently (re-run with different random seed).
+- **Minimum absolute count**: ≥20 non-trivial gaps (lower bound to ensure sufficient experimental sample size).
+
+If primary OR secondary metric fails after 2 iterations on gap detection heuristics, pivot to Formalization Gaps as fallback.
 
 ---
 
@@ -89,19 +95,24 @@ Ablation study compares all three + random baseline. This becomes a key technica
 
 ### P1-1: Novelty Judgment — defEq Layer
 
-Add a Lean 4-based equivalence check:
-1. For each verified theorem T_new, attempt `Lean.Meta.isDefEq` against all existing theorems in the relevant Mathlib module
-2. If defEq with any existing theorem → classify as Duplicate
-3. If not defEq but embedding similarity >0.95 → flag for manual review (or LLM-based deeper comparison)
-4. Triviality: Replace line-count heuristic with composite score: {tactic_count, max_tactic_depth, unique_lemmas_used, proof_term_size}
+Add a multi-layered equivalence check (defEq alone is too strict and produces false negatives for mathematically equivalent but syntactically different theorems):
+
+1. **Layer 1 — Normalization**: Before comparison, normalize theorem statements by: canonicalizing type variable names, sorting symmetric arguments, and unfolding top-level definitions. This reduces syntactic variation that defeats defEq.
+2. **Layer 2 — defEq**: Attempt `Lean.Meta.isDefEq` on normalized statements against existing theorems in the relevant Mathlib module. If match → Duplicate.
+3. **Layer 3 — Semantic near-match**: If not defEq but embedding similarity >0.90 → attempt to prove `T_new ↔ T_existing` (or `T_new → T_existing ∧ T_existing → T_new`) using automated tactics (aesop, simp). If bi-implication proven → Duplicate (isomorphic result).
+4. **Layer 4 — LLM comparison**: For remaining high-similarity pairs (>0.85), use LLM to assess whether theorems are equivalent up to renaming, reordering, or trivial reformulation.
+5. **Triviality**: Replace line-count heuristic with composite score: {tactic_count, max_tactic_depth, unique_lemmas_used, proof_term_size}
 
 ### P1-2: Staleness Detection — Statistical Rigor
 
 Replace "3/4 indicators declining for N cycles" with:
 1. **CUSUM (Cumulative Sum)** change point detection on novelty rate time series
 2. **Sliding window** significance test: compare last W cycles against the preceding W cycles using Mann-Whitney U test
-3. Staleness declared when CUSUM detects a shift AND the significance test rejects H0 (no decline) at p < 0.05
-4. N is not a fixed hyperparameter — it emerges from the statistical test
+3. **Autocorrelation handling**: Compute lag-1 autocorrelation of novelty rate series. If significant (p < 0.05), apply block bootstrap (block size = estimated autocorrelation length) instead of standard Mann-Whitney to preserve temporal dependence structure.
+4. **Multiple testing correction**: Apply Holm-Bonferroni correction across the 4 staleness indicators to control family-wise error rate at α = 0.05.
+5. Staleness declared when CUSUM detects a shift AND the corrected significance test rejects H0 (no decline).
+6. N is not a fixed hyperparameter — it emerges from the statistical test.
+7. **Expected false alarm rate**: Validate via simulation on synthetic novelty curves (constant, linear decline, step decline) before deployment. Target: false positive rate < 5% on constant curves, detection power > 80% on step declines of ≥30%.
 
 ### P1-3: Compute Cost Pilot
 
@@ -146,79 +157,102 @@ Run in Phase 1 (week 3-4):
 ## 5. Revised Architecture (Constraint-Adapted)
 
 ```
-┌──────────────────────────────────────────────────────────────────┐
-│                    AUTONOMOUS DISCOVERY LOOP                      │
-│                                                                   │
-│  ┌──────────────┐    ┌──────────────┐    ┌──────────────┐        │
-│  │  KNOWLEDGE   │───→│  ANALOGICAL  │───→│  CONJECTURE  │        │
-│  │  BASE        │    │  GAP         │    │  GENERATOR   │        │
-│  │  (Mathlib4   │    │  DETECTOR    │    │  (Claude/    │        │
-│  │   Algebra +  │    │  (Embedding  │    │   GPT-4 API) │        │
-│  │   own work)  │    │   + Graph)   │    │              │        │
-│  └──────────────┘    └──────────────┘    └──────────────┘        │
-│         ↑                                       │                 │
-│         │            ┌──────────────┐           ↓                 │
-│  ┌──────────────┐    │  CURIOSITY   │    ┌──────────────┐        │
-│  │   NOVELTY    │    │  SCORER      │    │    PROOF     │        │
-│  │   CHECKER    │    │  (3 variants │    │   ENGINE     │        │
-│  │  (defEq +   │    │   compared)  │    │  (Local 7B + │        │
-│  │   embedding) │    └──────────────┘    │   API heavy) │        │
-│  └──────────────┘           ↑            └──────────────┘        │
-│         ↑                   │                   │                 │
-│         │                   │                   ↓                 │
-│         └───────────────────┼────────── VERIFIER (Lean 4)        │
-│                             │                                     │
-│  ┌──────────────────────────┴─────────────────────────────────┐  │
-│  │         META-EVALUATOR (CUSUM + Statistical Tests)          │  │
-│  └─────────────────────────────────────────────────────────────┘  │
-│                          │                                        │
-│                          ↓                                        │
-│                  [CONTINUE or ALERT HUMAN]                        │
-└──────────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────┐
+│                   AUTONOMOUS DISCOVERY LOOP                      │
+│                                                                  │
+│  ┌──────────────┐   ┌──────────────┐   ┌──────────────┐        │
+│  │  KNOWLEDGE   │──→│  ANALOGICAL  │──→│  CONJECTURE  │        │
+│  │  BASE        │   │  GAP         │   │  GENERATOR   │        │
+│  │  (Mathlib4   │   │  DETECTOR    │   │  (Claude/    │        │
+│  │   Algebra +  │   │  (Embedding  │   │   GPT-4 API) │        │
+│  │   own work)  │   │   + Graph)   │   │              │        │
+│  └──────────────┘   └──────────────┘   └──────────────┘        │
+│         ↑                                      │                │
+│         │           ┌──────────────┐           ↓                │
+│  ┌──────────────┐   │  CURIOSITY   │   ┌──────────────┐        │
+│  │  NOVELTY     │   │  SCORER      │   │  PROOF       │        │
+│  │  CHECKER     │   │  (3 variants │   │  ENGINE      │        │
+│  │  (normalize  │   │   compared)  │   │  (Local 7B + │        │
+│  │  +defEq+emb) │   └──────────────┘   │   API heavy) │        │
+│  └──────────────┘          ↑           └──────────────┘        │
+│         ↑                  │                  │                 │
+│         │                  │                  ↓                 │
+│         └──────────────────┼──────── VERIFIER (Lean 4)         │
+│                            │                                    │
+│  ┌─────────────────────────┴──────────────────────────────── ┐  │
+│  │       META-EVALUATOR (CUSUM + Corrected Stat Tests)        │  │
+│  └────────────────────────────────────────────────────────── ┘  │
+│                         │                                       │
+│                         ↓                                       │
+│                 [CONTINUE or ALERT HUMAN]                       │
+└─────────────────────────────────────────────────────────────────┘
 
 Infra: Python orchestrator ←→ Lean 4 (subprocess/lake)
 Local: Mac Mini M2 Pro (orchestration, small model inference, Lean)
 API:   DeepSeek / Claude / GPT-4 (conjecture gen, heavy proof attempts)
 ```
 
+### Reproducibility Policy
+
+Fully open-source intent creates tension with closed API dependency. To address this:
+
+1. **Model version pinning**: All API calls log the exact model version used (e.g., `deepseek-prover-v2-0131`, `claude-3-opus-20240229`). Pin versions for the duration of each experiment run.
+2. **Full request/response logging**: Every LLM API call is logged with: timestamp, model version, full prompt, full response, token counts, temperature, and any other parameters. Logs are published as part of the open-source release.
+3. **Determinism where possible**: Set temperature=0 for all proof generation calls. For conjecture generation (where diversity matters), fix seed when the API supports it, and log the seed otherwise.
+4. **Reproducibility tiers**: Document clearly in the paper:
+   - **Tier 1 (fully reproducible)**: Lean 4 verification, gap detection, novelty checking, staleness detection — all local, deterministic.
+   - **Tier 2 (reproducible with same API access)**: Conjecture generation, proof attempts — reproducible given same model version + logged parameters.
+   - **Tier 3 (results reproducible, not exact outputs)**: If API versions are deprecated, results may vary but aggregate statistics (rediscovery rate, novelty rate) should be comparable.
+5. **Cached inference artifacts**: Publish all generated conjectures, proof attempts, and intermediate results so that downstream analysis can be reproduced without re-running API calls.
+
 ---
 
 ## 6. Revised Timeline (NeurIPS 2026 Target)
 
-### Phase 1: Foundation + Go/No-Go (Weeks 1-5, Feb-Mar 2026)
+### Phase 1: Foundation + Go/No-Go (Weeks 1-6, Feb-mid Mar 2026)
 
 - **Week 1-2**: Setup Lean 4 + Mathlib4 algebra subset; Python orchestrator skeleton; Mathlib graph + embedding extraction
-- **Week 2-3**: Implement Analogical Gap detector for algebra (group ↔ ring ↔ module analogies)
-- **Week 3-4**: Compute cost pilot (10 gaps) + auto-formalization pilot (20 theorems)
-- **Week 4-5**: Go/no-go evaluation: ≥50 non-trivial gaps found?
+- **Week 3-4**: Implement Analogical Gap detector for algebra (group ↔ ring ↔ module analogies)
+- **Week 4-5**: Compute cost pilot (10 gaps) + auto-formalization pilot (20 theorems)
+- **Week 5-6**: Go/no-go evaluation against normalized criteria (detection rate, top-20 precision)
   - **Go** → Phase 2
   - **No-go** → Pivot to Formalization Gaps, re-evaluate in 2 weeks
 
-### Phase 2: Core Loop (Weeks 6-9, Mar-Apr 2026)
+**Buffer**: 1 week added vs. original. Lean/Mathlib setup and embedding extraction are the highest-uncertainty tasks in the project; underestimating them would cascade into every subsequent phase.
 
-- **Week 6-7**: Conjecture generator (LLM → Lean 4 statement); proof engine (local 7B + API fallback)
-- **Week 7-8**: Verification pipeline (Lean 4 type-check, no sorry/admit); novelty checker (defEq + embedding)
-- **Week 8-9**: Full loop integration; first end-to-end discovery cycle
+### Phase 2: Core Loop (Weeks 7-11, mid Mar-mid Apr 2026)
+
+- **Week 7-8**: Conjecture generator (LLM → Lean 4 statement); proof engine (local 7B + API fallback)
+- **Week 8-9**: Verification pipeline (Lean 4 type-check, no sorry/admit); novelty checker (multi-layer)
+- **Week 10-11**: Full loop integration; first end-to-end discovery cycles
 - **Milestone**: System completes 10+ successful discovery cycles autonomously
 
-### Phase 3: Curiosity + Evaluation (Weeks 10-13, Apr-May 2026)
+**Buffer**: 1 week added. Integration of Python ↔ Lean bridge + API orchestration has high coupling risk.
 
-- **Week 10-11**: Implement 3 curiosity formulations + staleness detection (CUSUM)
-- **Week 11-12**: Rediscovery experiment (cutoff-based, with memorization pre-test)
-- **Week 12-13**: Ablation studies; novel discovery extended run
+### Phase 3: Curiosity + Evaluation (Weeks 12-16, mid Apr-mid May 2026)
+
+- **Week 12-13**: Implement 3 curiosity formulations + staleness detection (CUSUM with autocorrelation handling)
+- **Week 13-14**: Rediscovery experiment (cutoff-based, with memorization pre-test)
+- **Week 14-15**: Ablation studies; novel discovery extended run
+- **Week 15-16**: Results analysis, statistical validation, reproducibility artifact packaging
 - **Milestone**: Experimental results sufficient for paper
 
-### Phase 4: Paper (Weeks 14-16, May 2026)
+**Buffer**: 1 week added. Statistical validation (power analysis, effect sizes, multiple testing correction) requires dedicated time separate from running experiments.
 
-- **Week 14**: Results analysis, figures, tables
-- **Week 15**: Paper draft
-- **Week 16**: Revision, submission to NeurIPS 2026
+### Phase 4: Paper (Weeks 17-19, mid May-early Jun 2026)
+
+- **Week 17**: Figures, tables, architecture diagrams
+- **Week 18**: Paper draft (full)
+- **Week 19**: Revision, internal review, submission to NeurIPS 2026
+
+**Note**: Total timeline expanded from 16 to 19 weeks (+3 weeks buffer). This is more realistic for a project combining Lean/Mathlib development, LLM integration, and rigorous statistical evaluation. If NeurIPS deadline is earlier than expected, Phase 4 can compress by parallelizing draft writing with late Phase 3 experiments.
 
 ### Fallback: If NeurIPS deadline missed → continue to ICLR 2027
 
 - Add Generalization Gaps (second gap type)
 - Extended novel discovery runs
 - Deeper ablation analysis
+- Staleness simulation validation study
 - Submit by Sep 2026
 
 ---
@@ -230,12 +264,12 @@ API:   DeepSeek / Claude / GPT-4 (conjecture gen, heavy proof attempts)
 | MVP gap type | Analogical (algebra) | Strongest novelty claim + rich structure in Mathlib |
 | Proof engine | Hybrid (local 7B + API) | M2 Pro constraint; cost-controlled |
 | Curiosity | 3-way comparison | Strongest paper contribution |
-| Go/no-go | Automated metrics (4 criteria) | No mathematician; quantitative and reproducible |
-| Data leakage | Cutoff-based + memorization test | Most rigorous feasible approach |
-| Staleness | CUSUM + Mann-Whitney | Statistically principled |
-| Novelty check | defEq + embedding + composite triviality | Addresses mathematical equivalence |
+| Go/no-go | Normalized metrics (detection rate, top-20 precision) | Domain-size independent; avoids arbitrary absolute thresholds |
+| Data leakage | Cutoff-based + 20-trial Wilson CI memorization test | Statistically robust contamination detection |
+| Staleness | CUSUM + Mann-Whitney + autocorrelation + Holm-Bonferroni | Handles temporal dependence and multiple testing |
+| Novelty check | Normalize → defEq → bi-implication → LLM (4 layers) | Reduces false negatives from defEq-only approach |
 | Contribution emphasis | Discovery results | System is means, discoveries are the measure |
-| Open source | Full (code + data + scripts) | Reproducibility; community validation via Mathlib PRs |
+| Open source | Full (code + data + scripts) + reproducibility tiers | API dependence managed via version pinning, logging, cached artifacts |
 
 ---
 
@@ -247,7 +281,8 @@ API:   DeepSeek / Claude / GPT-4 (conjecture gen, heavy proof attempts)
 | API costs exceed budget | High | Pilot study in Phase 1; aggressive local model usage | Reduce iteration count; narrower domain |
 | Auto-formalization accuracy too low | High | Pilot in Phase 1; fallback to direct Lean generation | Skip NL intermediate step |
 | Proof success rate too low for novel conjectures | High | Start with near-known analogues; APOLLO repair loop | Focus on lemma-level discoveries |
-| NeurIPS deadline missed | Medium | ICLR 2027 fallback; workshop paper option | Timeline above accounts for this |
+| NeurIPS deadline missed | Medium | ICLR 2027 fallback; workshop paper option | 19-week timeline with buffers accounts for this |
+| API reproducibility gap | Medium | Version pinning, full logging, cached artifacts, 3-tier policy | Tier 3 fallback if API versions deprecated |
 | Lean 4 / Mathlib learning curve | Medium | Intermediate experience; Lean Zulip community | Budget extra time in Phase 1 |
 | Discovered theorems are trivial | Medium | Composite triviality score; Mathlib PR validation | Reframe as "gap detection" contribution |
 
