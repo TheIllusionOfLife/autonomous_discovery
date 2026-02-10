@@ -2,6 +2,12 @@
 
 ## Project Brief — February 2026
 
+> **Document 1 of 3** | Role: **Initial Proposition**
+>
+> This is the original project brief proposing the research direction, system architecture, experimental plan, and timeline. It serves as the foundational vision document.
+>
+> **Next**: [unified-review.md](unified-review.md) — Research review identifying issues and risks in this brief.
+
 ---
 
 ## Thesis

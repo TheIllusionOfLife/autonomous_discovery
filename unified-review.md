@@ -1,5 +1,12 @@
 # Unified Research Review: Autonomous Mathematical Discovery via Knowledge-Gap-Driven Curiosity
 
+> **Document 2 of 3** | Role: **Critical Review**
+>
+> Two independent research reviews of [autonomous-math-discovery-project-brief.md](autonomous-math-discovery-project-brief.md) were conducted. This document unifies and prioritizes findings from both reviews into 11 issues (Critical / High / Medium / Low) with actionable recommendations.
+>
+> **Previous**: [autonomous-math-discovery-project-brief.md](autonomous-math-discovery-project-brief.md) — The original proposition being reviewed.
+> **Next**: [project-spec.md](project-spec.md) — Specification that addresses these review findings.
+
 両レビューを統合し、重複を整理、新たに浮上した論点を加えて体系化。
 
 ---
