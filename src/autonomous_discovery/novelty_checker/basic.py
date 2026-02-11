@@ -4,7 +4,7 @@ Layers are evaluated in order:
 1. exact string duplicate
 2. normalized duplicate (comments + whitespace)
 3. lightweight defEq-style duplicate via binder alpha-normalization
-4. implication-equivalence duplicate (P -> Q vs Q -> P, and P ↔ Q)
+4. bi-implication duplicate (P ↔ Q)
 
 Optional semantic comparison can be plugged in as a final duplicate check.
 """
@@ -99,6 +99,7 @@ class BasicNoveltyChecker:
         if self.semantic_comparator is None or not self._seen_order:
             return None
 
+        best_low_confidence: float | None = None
         compare_scope = self._seen_order[-self.semantic_compare_limit :]
         for previous in reversed(compare_scope):
             try:
@@ -114,11 +115,15 @@ class BasicNoveltyChecker:
                     layer="semantic",
                     confidence=comparison.confidence,
                 )
+            if best_low_confidence is None or comparison.confidence > best_low_confidence:
+                best_low_confidence = comparison.confidence
+
+        if best_low_confidence is not None:
             return NoveltyDecision(
                 is_novel=False,
                 reason="unknown",
                 layer="semantic",
-                confidence=comparison.confidence,
+                confidence=best_low_confidence,
             )
 
         return None
@@ -143,8 +148,14 @@ class BasicNoveltyChecker:
 
     def _alpha_normalize_binders(self, expr: str) -> str:
         binder_names: list[str] = []
-        binder_names.extend(re.findall(r"(?:∀|forall)\s*\(\s*([A-Za-z_][A-Za-z0-9_']*)\s*:", expr))
-        binder_names.extend(re.findall(r"(?:∀|forall)\s+([A-Za-z_][A-Za-z0-9_']*)\s*:", expr))
+        pattern = (
+            r"(?:∀|forall)\s*(?:\(\s*([A-Za-z_][A-Za-z0-9_']*)\s*:|"
+            r"([A-Za-z_][A-Za-z0-9_']*)\s*:)"
+        )
+        for match in re.finditer(pattern, expr):
+            name = match.group(1) or match.group(2)
+            if name:
+                binder_names.append(name)
 
         mapping: dict[str, str] = {}
         for name in binder_names:
@@ -154,16 +165,18 @@ class BasicNoveltyChecker:
         normalized = expr
         for original, canonical in mapping.items():
             normalized = re.sub(rf"\b{re.escape(original)}\b", canonical, normalized)
+        normalized = re.sub(r"\bforall\b", "∀", normalized)
+        normalized = re.sub(
+            r"∀\s*\(\s*([A-Za-z_][A-Za-z0-9_']*)\s*:\s*([^)]+?)\s*\)",
+            r"∀ \1 : \2",
+            normalized,
+        )
         return re.sub(r"\s+", " ", normalized).strip()
 
     def _bi_implication_key(self, statement: str) -> tuple[str, str] | None:
         body = self._statement_body(statement)
         if "↔" in body:
             left, right = body.split("↔", maxsplit=1)
-            return self._canonical_relation_pair(left, right)
-
-        if body.count("->") == 1:
-            left, right = body.split("->", maxsplit=1)
             return self._canonical_relation_pair(left, right)
 
         return None
@@ -177,9 +190,25 @@ class BasicNoveltyChecker:
 
     def _strip_wrapping_parens(self, text: str) -> str:
         candidate = text.strip()
-        while candidate.startswith("(") and candidate.endswith(")"):
+        while self._is_fully_wrapped(candidate):
             inner = candidate[1:-1].strip()
             if not inner:
                 break
             candidate = inner
         return candidate
+
+    def _is_fully_wrapped(self, text: str) -> bool:
+        if len(text) < 2 or text[0] != "(" or text[-1] != ")":
+            return False
+
+        depth = 0
+        for index, char in enumerate(text):
+            if char == "(":
+                depth += 1
+            elif char == ")":
+                depth -= 1
+                if depth < 0:
+                    return False
+                if depth == 0 and index != len(text) - 1:
+                    return False
+        return depth == 0
