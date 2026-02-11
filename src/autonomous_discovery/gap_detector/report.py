@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import dataclasses
 import json
 from pathlib import Path
 
@@ -13,18 +14,7 @@ def write_gap_report(candidates: list[GapCandidate], output_path: Path) -> None:
     output_path.parent.mkdir(parents=True, exist_ok=True)
     with output_path.open("w", encoding="utf-8") as f:
         for candidate in candidates:
-            f.write(
-                json.dumps(
-                    {
-                        "source_decl": candidate.source_decl,
-                        "target_family": candidate.target_family,
-                        "missing_decl": candidate.missing_decl,
-                        "score": candidate.score,
-                        "signals": candidate.signals,
-                    },
-                    sort_keys=True,
-                )
-            )
+            f.write(json.dumps(dataclasses.asdict(candidate), sort_keys=True))
             f.write("\n")
 
 

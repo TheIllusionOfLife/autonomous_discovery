@@ -126,14 +126,13 @@ class AnalogicalGapDetector:
         if not deps:
             return 0, 0
 
-        translated_total = 0
+        translated_total = len(deps)
         translated_hits = 0
         for dep in deps:
             if dep.startswith(source_prefix):
                 translated_dep = f"{target_prefix}{dep[len(source_prefix) :]}"
             else:
                 translated_dep = dep
-            translated_total += 1
             if translated_dep in nodes:
                 translated_hits += 1
         return translated_total, translated_hits
