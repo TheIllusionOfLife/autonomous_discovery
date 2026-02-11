@@ -1,0 +1,21 @@
+---
+List.toFinset.ext_iff
+  * congrArg
+  List.instMembershipList
+  Finset
+  * Membership.mem
+  List.toFinset
+s List.mem_toFinset
+s Finset.ext_iff
+s propext
+---
+Nat.add_comm
+  * Nat.rec
+  * Nat.add
+  Nat.add_succ
+  Nat.succ_add
+---
+Group.inv_mul_cancel
+  * Group.inv
+  * HMul.hMul
+  Group.mul_left_inv
