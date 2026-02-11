@@ -32,6 +32,9 @@ def read_conjectures(path: Path) -> list[ConjectureCandidate]:
             if not line.strip():
                 continue
             row = json.loads(line)
+            metadata_raw = row.get("metadata", {})
+            if not isinstance(metadata_raw, dict):
+                raise ValueError("metadata must be a JSON object")
             items.append(
                 ConjectureCandidate(
                     gap_missing_decl=row["gap_missing_decl"],
@@ -39,7 +42,7 @@ def read_conjectures(path: Path) -> list[ConjectureCandidate]:
                     rationale=row["rationale"],
                     model_id=row["model_id"],
                     temperature=float(row["temperature"]),
-                    metadata={str(k): str(v) for k, v in row.get("metadata", {}).items()},
+                    metadata={str(k): str(v) for k, v in metadata_raw.items()},
                 )
             )
     return items

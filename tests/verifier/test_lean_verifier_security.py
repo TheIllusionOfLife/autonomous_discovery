@@ -9,7 +9,9 @@ class FakeRunner:
     def check_lean_available(self) -> bool:
         return True
 
-    def run_command(self, cmd: list[str], *, timeout: int | None = None, cwd: str | None = None) -> LeanResult:
+    def run_command(
+        self, cmd: list[str], *, timeout: int | None = None, cwd: str | None = None
+    ) -> LeanResult:
         self.commands.append(cmd)
         return LeanResult(stdout="", stderr="", returncode=0, timed_out=False)
 
@@ -17,7 +19,7 @@ class FakeRunner:
 def test_verifier_blocks_unsafe_lean_directives() -> None:
     verifier = LeanVerifier(runner=FakeRunner())
 
-    result = verifier.verify("theorem T : True", "by\n  run_cmd IO.println \"x\"")
+    result = verifier.verify("theorem T : True", 'by\n  run_cmd IO.println "x"')
 
     assert result.success is False
     assert "unsafe" in result.stderr.lower()
