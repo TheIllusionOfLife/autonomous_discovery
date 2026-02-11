@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 import logging
 import time
-from collections import OrderedDict
+from collections import Counter, OrderedDict
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Protocol
@@ -49,8 +49,6 @@ class Verifier(Protocol):
 
     def is_available(self) -> bool: ...
 
-    def runtime_status(self) -> dict[str, bool]: ...
-
 
 class CounterexampleFilter(Protocol):
     """Protocol for fast conjecture rejection filters."""
@@ -66,10 +64,10 @@ class NoveltyChecker(Protocol):
 
 @dataclass(frozen=True, slots=True)
 class GatingOutcome:
-    verifiable_conjectures: list[ConjectureCandidate]
+    verifiable_conjectures: tuple[ConjectureCandidate, ...]
     filtered_out_count: int
     filter_pass_count: int
-    filter_reject_reasons: dict[str, int]
+    filter_reject_reasons: tuple[tuple[str, int], ...]
     duplicate_count: int
     novel_count: int
     novelty_unknown_count: int
@@ -78,7 +76,7 @@ class GatingOutcome:
 @dataclass(frozen=True, slots=True)
 class VerificationOutcome:
     success_count: int
-    failure_counts: dict[str, int]
+    failure_counts: tuple[tuple[str, int], ...]
 
 
 def _file_signature(path: Path) -> tuple[str, int, int]:
@@ -116,7 +114,7 @@ def _failure_kind(result: VerificationResult) -> str:
     return "verification_failed"
 
 
-def _runtime_status(verifier: Verifier) -> dict[str, bool]:
+def _runtime_status(verifier: Verifier, *, trusted_local_run: bool) -> dict[str, bool]:
     if hasattr(verifier, "runtime_status"):
         status = verifier.runtime_status()
         return {
@@ -126,10 +124,11 @@ def _runtime_status(verifier: Verifier) -> dict[str, bool]:
         }
 
     lean_available = verifier.is_available()
+    sandbox_available = trusted_local_run
     return {
         "lean_available": lean_available,
-        "sandbox_available": True,
-        "runtime_ready": lean_available,
+        "sandbox_available": sandbox_available,
+        "runtime_ready": lean_available and (sandbox_available or trusted_local_run),
     }
 
 
@@ -158,7 +157,7 @@ def _gate_conjectures(
 ) -> GatingOutcome:
     filtered_out_count = 0
     filter_pass_count = 0
-    filter_reject_reasons: dict[str, int] = {}
+    filter_reject_reasons: Counter[str] = Counter()
     duplicate_count = 0
     novel_count = 0
     novelty_unknown_count = 0
@@ -168,9 +167,7 @@ def _gate_conjectures(
         filter_decision = conjecture_filter.evaluate(conjecture)
         if not filter_decision.accepted:
             filtered_out_count += 1
-            filter_reject_reasons[filter_decision.reason] = (
-                filter_reject_reasons.get(filter_decision.reason, 0) + 1
-            )
+            filter_reject_reasons[filter_decision.reason] += 1
             continue
 
         filter_pass_count += 1
@@ -184,10 +181,10 @@ def _gate_conjectures(
             novelty_unknown_count += 1
 
     return GatingOutcome(
-        verifiable_conjectures=verifiable_conjectures,
+        verifiable_conjectures=tuple(verifiable_conjectures),
         filtered_out_count=filtered_out_count,
         filter_pass_count=filter_pass_count,
-        filter_reject_reasons=filter_reject_reasons,
+        filter_reject_reasons=tuple(sorted(filter_reject_reasons.items())),
         duplicate_count=duplicate_count,
         novel_count=novel_count,
         novelty_unknown_count=novelty_unknown_count,
@@ -216,7 +213,7 @@ def _verify_conjectures(
     proof_retry_budget: int,
 ) -> VerificationOutcome:
     success_count = 0
-    failure_counts: dict[str, int] = {}
+    failure_counts: Counter[str] = Counter()
 
     with attempts_path.open("w", encoding="utf-8") as f:
         for conjecture in conjectures:
@@ -231,7 +228,7 @@ def _verify_conjectures(
                 duration_ms = (time.perf_counter_ns() - attempt_started_ns) / 1_000_000
                 failure_kind = _failure_kind(verification)
                 if failure_kind != "none":
-                    failure_counts[failure_kind] = failure_counts.get(failure_kind, 0) + 1
+                    failure_counts[failure_kind] += 1
                 row = {
                     "gap_missing_decl": conjecture.gap_missing_decl,
                     "statement": attempt.statement,
@@ -251,7 +248,10 @@ def _verify_conjectures(
             if conjecture_succeeded:
                 success_count += 1
 
-    return VerificationOutcome(success_count=success_count, failure_counts=failure_counts)
+    return VerificationOutcome(
+        success_count=success_count,
+        failure_counts=tuple(sorted(failure_counts.items())),
+    )
 
 
 def run_phase2_cycle(
@@ -301,7 +301,7 @@ def run_phase2_cycle(
         trusted_local_run=trusted_local_run,
         sandbox_command_prefix=sandbox_command_prefix,
     )
-    runtime_status = _runtime_status(effective_verifier)
+    runtime_status = _runtime_status(effective_verifier, trusted_local_run=trusted_local_run)
     verification_mode = "trusted_local" if trusted_local_run else "sandboxed"
 
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -333,7 +333,7 @@ def run_phase2_cycle(
         "conjecture_count": len(conjectures),
         "filtered_out_count": gating.filtered_out_count,
         "filter_pass_count": gating.filter_pass_count,
-        "filter_reject_reasons": dict(sorted(gating.filter_reject_reasons.items())),
+        "filter_reject_reasons": dict(gating.filter_reject_reasons),
         "duplicate_count": gating.duplicate_count,
         "novel_count": gating.novel_count,
         "novelty_unknown_count": gating.novelty_unknown_count,
@@ -341,13 +341,14 @@ def run_phase2_cycle(
         "success_rate": success_rate,
         "cycle_duration_ms": round(cycle_duration_ms, 3),
         "graph_cache_hit": graph_cache_hit,
+        # Backward-compatible alias retained for existing artifact consumers.
         "verifier_available": runtime_status["lean_available"],
         "verification_mode": verification_mode,
         "lean_available": runtime_status["lean_available"],
         "sandbox_available": runtime_status["sandbox_available"],
         "runtime_ready": runtime_status["runtime_ready"],
         "skipped_reason": skipped_reason,
-        "failure_counts": dict(sorted(verification_outcome.failure_counts.items())),
+        "failure_counts": dict(verification_outcome.failure_counts),
         "top_k": top_k,
         "proof_retry_budget": proof_retry_budget,
         "artifacts": {

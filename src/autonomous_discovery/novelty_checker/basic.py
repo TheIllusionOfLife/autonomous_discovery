@@ -20,7 +20,11 @@ class NoveltyDecision:
 
 @dataclass(slots=True)
 class BasicNoveltyChecker:
-    """Baseline duplicate detector using exact and normalized matching."""
+    """Baseline duplicate detector using exact and normalized matching.
+
+    This checker is stateful: novel statements are added to ``existing_statements``.
+    Normalization currently strips line comments only, not nested Lean block comments.
+    """
 
     existing_statements: set[str] = field(default_factory=set)
     _normalized_existing: set[str] = field(init=False, default_factory=set)
