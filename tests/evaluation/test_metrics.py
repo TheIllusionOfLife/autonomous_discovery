@@ -1,10 +1,10 @@
+from autonomous_discovery.gap_detector.analogical import GapCandidate
 from autonomous_discovery.gap_detector.evaluation import (
     build_topk_label_template_rows,
     compute_detection_rate,
     compute_topk_precision,
 )
 from autonomous_discovery.gap_detector.report import read_gap_report, write_gap_report
-from autonomous_discovery.gap_detector.analogical import GapCandidate
 
 
 def test_compute_topk_precision() -> None:
