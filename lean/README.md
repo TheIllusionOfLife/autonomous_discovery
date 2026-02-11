@@ -26,19 +26,17 @@ git submodule update --init --recursive
 Build `LeanExtract`:
 
 ```bash
-cd lean/LeanExtract
-lake update
-lake build
+lake -d lean/LeanExtract update
+lake -d lean/LeanExtract build
 ```
 
 Run extraction scripts from `lean-training-data`:
 
 ```bash
-cd lean/lean-training-data
-lake update
-lake exe cache get
-lake exe declaration_types Mathlib
-lake exe premises Mathlib
+lake -d lean/lean-training-data update
+lake -d lean/lean-training-data exe cache get
+lake -d lean/lean-training-data exe declaration_types Mathlib
+lake -d lean/lean-training-data exe premises Mathlib
 ```
 
 ## Notes

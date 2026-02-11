@@ -1,13 +1,16 @@
 # LeanExtract
 
-## GitHub configuration
+Project-local Lean package used by `autonomous_discovery` for Lean-side extraction and bridge utilities.
 
-To set up your new GitHub repository, follow these steps:
+## From Repository Root
 
-* Under your repository name, click **Settings**.
-* In the **Actions** section of the sidebar, click "General".
-* Check the box **Allow GitHub Actions to create and approve pull requests**.
-* Click the **Pages** section of the settings sidebar.
-* In the **Source** dropdown menu, select "GitHub Actions".
+```bash
+git submodule update --init --recursive
+lake -d lean/LeanExtract update
+lake -d lean/LeanExtract build
+```
 
-After following the steps above, you can remove this section from the README file.
+## Notes
+
+- Keep `LeanExtract` changes scoped to project needs.
+- Do not commit build artifacts (`.lake/`, `build/`, `*.olean`).
