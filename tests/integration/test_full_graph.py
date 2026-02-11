@@ -1,5 +1,8 @@
 """Integration tests: load full Mathlib graph from real lean-training-data output."""
 
+import shutil
+import subprocess
+
 import pytest
 
 from autonomous_discovery.config import ProjectConfig
@@ -56,7 +59,8 @@ class TestPostCutoffCount:
 
         Threshold: >=30 commits (proxy for spec's go/no-go theorem threshold).
         """
-        import subprocess
+        if not shutil.which("git"):
+            pytest.skip("git not found on PATH")
 
         config = ProjectConfig()
         mathlib_dir = config.lean_project_dir / ".lake" / "packages" / "mathlib"
@@ -65,19 +69,24 @@ class TestPostCutoffCount:
             pytest.skip(f"Mathlib repo not found at {mathlib_dir}")
 
         # Count commits touching algebra files since cutoff
-        result = subprocess.run(
-            [
-                "git",
-                "log",
-                f"--since={config.cutoff_date.isoformat()}",
-                "--oneline",
-                "--",
-                "Mathlib/Algebra/",
-            ],
-            capture_output=True,
-            text=True,
-            cwd=mathlib_dir,
-        )
+        try:
+            result = subprocess.run(
+                [
+                    "git",
+                    "log",
+                    f"--since={config.cutoff_date.isoformat()}",
+                    "--oneline",
+                    "--",
+                    "Mathlib/Algebra/",
+                ],
+                capture_output=True,
+                text=True,
+                cwd=mathlib_dir,
+                timeout=30,
+                check=True,
+            )
+        except (subprocess.CalledProcessError, subprocess.TimeoutExpired) as e:
+            pytest.fail(f"git log failed: {e}")
 
         commit_count = len([line for line in result.stdout.strip().split("\n") if line])
         print(f"\nPost-cutoff algebra commits (proxy for activity): {commit_count}")

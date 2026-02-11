@@ -88,7 +88,8 @@ class MathlibGraph:
         Declaration names in Mathlib use short prefixes (e.g. 'Algebra.', 'Group.')
         rather than full module paths.
         """
-        matching = [n for n in self._graph.nodes if any(n.startswith(p) for p in prefixes)]
+        prefix_tuple = tuple(prefixes)
+        matching = [n for n in self._graph.nodes if n.startswith(prefix_tuple)]
         subgraph = self._graph.subgraph(matching).copy()
         return MathlibGraph(subgraph)
 

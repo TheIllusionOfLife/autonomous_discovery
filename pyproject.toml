@@ -1,7 +1,7 @@
 [project]
 name = "autonomous-discovery"
 version = "0.1.0"
-description = "Add your description here"
+description = "Autonomous mathematical discovery system using Lean 4 and Mathlib"
 readme = "README.md"
 authors = [
     { name = "TheIllusionOfLife", email = "TheIllusionOfLife@users.noreply.github.com" }

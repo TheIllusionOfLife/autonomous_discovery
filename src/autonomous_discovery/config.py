@@ -9,15 +9,20 @@ from pathlib import Path
 PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True)
 class ProjectConfig:
     """Immutable project-wide configuration."""
 
     # Paths
     project_root: Path = PROJECT_ROOT
-    data_raw_dir: Path = field(default_factory=lambda: PROJECT_ROOT / "data" / "raw")
-    data_processed_dir: Path = field(default_factory=lambda: PROJECT_ROOT / "data" / "processed")
-    lean_project_dir: Path = field(default_factory=lambda: PROJECT_ROOT / "lean" / "LeanExtract")
+    data_raw_dir: Path = field(init=False)
+    data_processed_dir: Path = field(init=False)
+    lean_project_dir: Path = field(init=False)
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "data_raw_dir", self.project_root / "data" / "raw")
+        object.__setattr__(self, "data_processed_dir", self.project_root / "data" / "processed")
+        object.__setattr__(self, "lean_project_dir", self.project_root / "lean" / "LeanExtract")
 
     # Data files
     premises_file: str = "premises.txt"
@@ -28,9 +33,11 @@ class ProjectConfig:
     algebra_name_prefixes: tuple[str, ...] = (
         "Algebra.",
         "CommRing.",
+        "Field.",
         "Group.",
         "Ideal.",
         "LinearMap.",
+        "Matrix.",
         "Module.",
         "MonoidHom.",
         "MulAction.",

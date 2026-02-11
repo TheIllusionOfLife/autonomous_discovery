@@ -61,6 +61,9 @@ def parse_premises(text: str) -> list[PremisesEntry]:
                 is_explicit = True
                 stripped = stripped[2:].strip()
             elif stripped.startswith("s "):
+                # lean-training-data prefixes simp dependencies with "s ".
+                # This is unambiguous: Lean declaration names follow Namespace.Name
+                # convention and never start with a lowercase letter followed by space.
                 is_simp = True
                 stripped = stripped[2:].strip()
 

@@ -56,7 +56,7 @@ class LeanRunner:
     ) -> LeanResult:
         """Run an arbitrary command and capture output."""
         effective_timeout = timeout if timeout is not None else self.timeout
-        effective_cwd = cwd or self.project_dir
+        effective_cwd = cwd if cwd is not None else self.project_dir
         try:
             proc = subprocess.run(
                 cmd,
@@ -71,8 +71,13 @@ class LeanRunner:
                 returncode=proc.returncode,
                 timed_out=False,
             )
-        except subprocess.TimeoutExpired:
-            return LeanResult(stdout="", stderr="", returncode=-1, timed_out=True)
+        except subprocess.TimeoutExpired as e:
+            return LeanResult(
+                stdout=e.stdout or "" if isinstance(e.stdout, str) else "",
+                stderr=e.stderr or "" if isinstance(e.stderr, str) else "",
+                returncode=-1,
+                timed_out=True,
+            )
         except (FileNotFoundError, OSError) as e:
             return LeanResult(stdout="", stderr=str(e), returncode=-1, timed_out=False)
 

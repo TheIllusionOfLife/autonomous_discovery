@@ -30,7 +30,7 @@ Three documents form a sequential chain (read in order):
 
 ## Architecture (Discovery Loop)
 
-```
+```text
 Knowledge Base → Gap Detector → Conjecture Generator → Counter-Example Filter
      ↑                                                         ↓
 Novelty Checker ← Verifier (Lean 4) ← Self-Repair Loop ← Proof Engine

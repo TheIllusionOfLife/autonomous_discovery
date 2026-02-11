@@ -111,6 +111,12 @@ class TestLeanRunnerUnit:
 
 @pytest.mark.integration
 class TestLeanRunnerIntegration:
+    @pytest.fixture(autouse=True)
+    def _require_lean(self) -> None:
+        runner = LeanRunner()
+        if not runner.check_lean_available():
+            pytest.skip("Lean not available on PATH")
+
     def test_lean_version_check(self) -> None:
         runner = LeanRunner()
         assert runner.check_lean_available() is True
