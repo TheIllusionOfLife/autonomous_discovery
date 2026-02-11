@@ -17,7 +17,7 @@ class FakeRunner:
 
 
 def test_verifier_blocks_unsafe_lean_directives() -> None:
-    verifier = LeanVerifier(runner=FakeRunner())
+    verifier = LeanVerifier(runner=FakeRunner(), require_sandbox=False)
 
     result = verifier.verify("theorem T : True", 'by\n  run_cmd IO.println "x"')
 
@@ -33,7 +33,7 @@ def test_verifier_truncates_stderr_payload() -> None:
             _ = (cmd, timeout, cwd)
             return LeanResult(stdout="", stderr="x" * 5000, returncode=1, timed_out=False)
 
-    verifier = LeanVerifier(runner=NoisyRunner(), max_stderr_chars=200)
+    verifier = LeanVerifier(runner=NoisyRunner(), max_stderr_chars=200, require_sandbox=False)
     result = verifier.verify("theorem T : True", "by\n  trivial")
 
     assert result.success is False
@@ -41,8 +41,20 @@ def test_verifier_truncates_stderr_payload() -> None:
 
 
 def test_verifier_allows_identifiers_containing_io_substring() -> None:
-    verifier = LeanVerifier(runner=FakeRunner())
+    verifier = LeanVerifier(runner=FakeRunner(), require_sandbox=False)
 
     result = verifier.verify("theorem AIO.foo : True", "by\n  trivial")
 
     assert result.success is True
+
+
+def test_verifier_requires_sandbox_runtime_by_default() -> None:
+    verifier = LeanVerifier(
+        runner=FakeRunner(),
+        require_sandbox=True,
+        sandbox_command_prefix=("definitely-not-installed-sandbox",),
+    )
+
+    result = verifier.verify("theorem T : True", "by\n  trivial")
+    assert result.success is False
+    assert "sandbox runtime is required" in result.stderr.lower()

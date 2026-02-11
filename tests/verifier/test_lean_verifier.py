@@ -20,7 +20,8 @@ class FakeRunner:
 
 def test_lean_verifier_returns_unavailable_result_when_lean_missing() -> None:
     verifier = LeanVerifier(
-        runner=FakeRunner(available=False, result=LeanResult("", "", 0, False))
+        runner=FakeRunner(available=False, result=LeanResult("", "", 0, False)),
+        require_sandbox=False,
     )
 
     result = verifier.verify("theorem T : True", "by\n  trivial")
@@ -31,10 +32,20 @@ def test_lean_verifier_returns_unavailable_result_when_lean_missing() -> None:
 
 def test_lean_verifier_executes_runner_and_maps_success() -> None:
     runner = FakeRunner(available=True, result=LeanResult("", "", 0, False))
-    verifier = LeanVerifier(runner=runner)
+    verifier = LeanVerifier(runner=runner, require_sandbox=False)
 
     result = verifier.verify("theorem T : True", "by\n  trivial")
 
     assert result.success is True
     assert runner.commands
     assert runner.commands[0][:3] == ["lake", "env", "lean"]
+
+
+def test_lean_verifier_propagates_failure_status_from_runner() -> None:
+    runner = FakeRunner(available=True, result=LeanResult("", "error", 1, False))
+    verifier = LeanVerifier(runner=runner, require_sandbox=False)
+
+    result = verifier.verify("theorem T : True", "by\n  trivial")
+
+    assert result.success is False
+    assert "error" in result.stderr

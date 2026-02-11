@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from dataclasses import asdict
 from pathlib import Path
 
 from autonomous_discovery.conjecture_generator.models import ConjectureCandidate
@@ -13,14 +14,7 @@ def write_conjectures(conjectures: list[ConjectureCandidate], path: Path) -> Non
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.open("w", encoding="utf-8") as f:
         for conjecture in conjectures:
-            row = {
-                "gap_missing_decl": conjecture.gap_missing_decl,
-                "lean_statement": conjecture.lean_statement,
-                "rationale": conjecture.rationale,
-                "model_id": conjecture.model_id,
-                "temperature": conjecture.temperature,
-                "metadata": conjecture.metadata,
-            }
+            row = asdict(conjecture)
             f.write(json.dumps(row, sort_keys=True) + "\n")
 
 

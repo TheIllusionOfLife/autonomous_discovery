@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+import shutil
 from dataclasses import dataclass, field
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -18,6 +19,8 @@ class LeanVerifier:
     runner: LeanRunner = field(default_factory=LeanRunner)
     timeout: int = 30
     max_stderr_chars: int = 2000
+    require_sandbox: bool = True
+    sandbox_command_prefix: tuple[str, ...] = ("nsjail",)
 
     _disallowed_patterns: tuple[re.Pattern[str], ...] = (
         re.compile(r"\brun_cmd\b", re.IGNORECASE),
@@ -49,6 +52,18 @@ class LeanVerifier:
                 stderr="Unsafe Lean directives are not permitted in verifier inputs.",
                 timed_out=False,
             )
+        if self.require_sandbox and not self._sandbox_available():
+            return VerificationResult(
+                statement=statement,
+                proof_script=proof_script,
+                success=False,
+                stderr=(
+                    "Sandbox runtime is required for Lean verification but was not found. "
+                    "Configure sandbox_command_prefix or disable require_sandbox "
+                    "for trusted-only runs."
+                ),
+                timed_out=False,
+            )
 
         with TemporaryDirectory(prefix="autonomous_discovery_lean_") as tmp_dir:
             lean_path = Path(tmp_dir) / "Candidate.lean"
@@ -58,8 +73,10 @@ class LeanVerifier:
                 encoding="utf-8",
             )
 
+            lean_cmd = ["lake", "env", "lean", str(lean_path)]
+            cmd = [*self.sandbox_command_prefix, *lean_cmd] if self.require_sandbox else lean_cmd
             result = self.runner.run_command(
-                ["lake", "env", "lean", str(lean_path)],
+                cmd,
                 timeout=self.timeout,
             )
             return VerificationResult(
@@ -79,3 +96,8 @@ class LeanVerifier:
         if len(redacted) <= self.max_stderr_chars:
             return redacted
         return redacted[: self.max_stderr_chars] + "...<truncated>"
+
+    def _sandbox_available(self) -> bool:
+        if not self.sandbox_command_prefix:
+            return False
+        return shutil.which(self.sandbox_command_prefix[0]) is not None
