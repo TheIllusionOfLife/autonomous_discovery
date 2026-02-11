@@ -30,14 +30,19 @@ class MathlibGraph:
         # Index declarations by name for attribute lookup
         decl_index: dict[str, DeclarationEntry] = {d.name: d for d in declarations}
 
+        # Add ALL declaration nodes first (including those with no premises)
+        for decl in declarations:
+            g.add_node(decl.name, kind=decl.kind, type_signature=decl.type_signature)
+
+        # Add premise entries and edges
         for entry in premises:
-            # Add the declaration node with attributes
-            node_attrs: dict[str, Any] = {}
-            if entry.name in decl_index:
-                decl = decl_index[entry.name]
-                node_attrs["kind"] = decl.kind
-                node_attrs["type_signature"] = decl.type_signature
-            g.add_node(entry.name, **node_attrs)
+            if not g.has_node(entry.name):
+                node_attrs: dict[str, Any] = {}
+                if entry.name in decl_index:
+                    decl = decl_index[entry.name]
+                    node_attrs["kind"] = decl.kind
+                    node_attrs["type_signature"] = decl.type_signature
+                g.add_node(entry.name, **node_attrs)
 
             # Add edges to dependencies
             for dep in entry.dependencies:

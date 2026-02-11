@@ -26,8 +26,9 @@ dev = [
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+addopts = "-m 'not integration'"
 markers = [
-    "integration: marks tests requiring real data or external tools (deselect with '-m \"not integration\"')",
+    "integration: marks tests requiring real data or external tools (run with '-m integration')",
 ]
 
 [tool.ruff]

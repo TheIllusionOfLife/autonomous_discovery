@@ -108,13 +108,15 @@ def parse_declaration_types(text: str) -> list[DeclarationEntry]:
         # Signature is everything after name line, stripped of leading/trailing blank lines
         sig_lines = lines[sig_start_idx:]
         # Strip trailing empty lines
-        while sig_lines and not sig_lines[-1].strip():
-            sig_lines.pop()
+        end = len(sig_lines)
+        while end > 0 and not sig_lines[end - 1].strip():
+            end -= 1
         # Strip leading empty lines
-        while sig_lines and not sig_lines[0].strip():
-            sig_lines.pop(0)
+        start = 0
+        while start < end and not sig_lines[start].strip():
+            start += 1
 
-        type_signature = "\n".join(sig_lines)
+        type_signature = "\n".join(sig_lines[start:end])
 
         entries.append(DeclarationEntry(kind=kind, name=name, type_signature=type_signature))
 

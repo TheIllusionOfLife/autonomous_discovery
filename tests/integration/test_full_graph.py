@@ -15,6 +15,10 @@ class TestFullGraph:
 
     @pytest.fixture
     def full_graph(self, config: ProjectConfig) -> MathlibGraph:
+        if not config.premises_path.exists():
+            pytest.skip(f"Data file not found: {config.premises_path}")
+        if not config.decl_types_path.exists():
+            pytest.skip(f"Data file not found: {config.decl_types_path}")
         premises_text = config.premises_path.read_text()
         decl_types_text = config.decl_types_path.read_text()
         premises = parse_premises(premises_text)
@@ -40,14 +44,17 @@ class TestFullGraph:
 class TestPostCutoffCount:
     """Critical early gate: count post-2024-08 algebra theorems in Mathlib."""
 
-    def test_post_cutoff_algebra_theorem_count(self) -> None:
-        """Verify sufficient post-cutoff algebra theorems exist for the experiment.
+    def test_post_cutoff_algebra_activity(self) -> None:
+        """Verify sufficient post-cutoff algebra development activity in Mathlib.
 
-        This test requires the Mathlib4 git repo to be available at
-        lean/LeanExtract/.lake/packages/mathlib/. It counts commits
-        touching Mathlib/Algebra/ since the cutoff date.
+        This is a coarse proxy: counts git commits touching Mathlib/Algebra/
+        since the cutoff date. A commit may add, modify, or remove multiple
+        theorems, so this is a lower bound on activity, not an exact theorem count.
 
-        Threshold: >=30 theorems (per project spec go/no-go criteria).
+        A more precise count (diffing declaration names) is deferred to the
+        gap detector module where we compare declaration sets across versions.
+
+        Threshold: >=30 commits (proxy for spec's go/no-go theorem threshold).
         """
         import subprocess
 
@@ -73,12 +80,12 @@ class TestPostCutoffCount:
         )
 
         commit_count = len([line for line in result.stdout.strip().split("\n") if line])
-        print(f"\nPost-cutoff algebra commits: {commit_count}")
-        print(f"Threshold: >= {config.min_post_cutoff_theorems}")
+        print(f"\nPost-cutoff algebra commits (proxy for activity): {commit_count}")
+        print(f"Threshold: >= {config.min_post_cutoff_theorems} commits")
 
         if commit_count < config.min_post_cutoff_theorems:
             pytest.fail(
-                f"EARLY GATE FAILURE: Only {commit_count} post-cutoff algebra commits "
+                f"EARLY GATE WARNING: Only {commit_count} post-cutoff algebra commits "
                 f"(need >= {config.min_post_cutoff_theorems}). "
                 f"Consider expanding domain or adjusting cutoff date."
             )

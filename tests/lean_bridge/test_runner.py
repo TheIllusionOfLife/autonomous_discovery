@@ -65,6 +65,17 @@ class TestLeanRunnerUnit:
             assert result.timed_out is True
             assert result.success is False
 
+    def test_run_command_missing_executable(self) -> None:
+        runner = LeanRunner()
+        with patch(
+            "autonomous_discovery.lean_bridge.runner.subprocess.run",
+            side_effect=FileNotFoundError("No such file: 'nonexistent'"),
+        ):
+            result = runner.run_command(["nonexistent"])
+            assert result.success is False
+            assert not result.timed_out
+            assert "No such file" in result.stderr
+
     def test_run_command_error(self) -> None:
         runner = LeanRunner()
         with patch("autonomous_discovery.lean_bridge.runner.subprocess.run") as mock_run:

@@ -47,6 +47,20 @@ class TestBuildGraph:
         assert "type_signature" in attrs
         assert "∀ (n m : Nat)" in attrs["type_signature"]
 
+    def test_isolated_declarations_included(self) -> None:
+        """Declarations with no premises should still appear as graph nodes."""
+        from autonomous_discovery.knowledge_base.parser import DeclarationEntry, PremisesEntry
+
+        premises = [PremisesEntry(name="A", dependencies=[])]
+        declarations = [
+            DeclarationEntry(kind="theorem", name="A", type_signature="A : Prop"),
+            DeclarationEntry(kind="theorem", name="B", type_signature="B : Prop"),
+        ]
+        graph = MathlibGraph.from_raw_data(premises, declarations)
+        assert graph.has_node("A")
+        assert graph.has_node("B")  # B has no premises but should still be in graph
+        assert graph.get_node_attrs("B")["kind"] == "theorem"
+
     def test_edge_attributes(self, graph: MathlibGraph) -> None:
         # Nat.add_comm -> Nat.rec is explicit
         edge_attrs = graph.get_edge_attrs("Nat.add_comm", "Nat.rec")

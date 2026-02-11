@@ -55,7 +55,7 @@ class LeanRunner:
         cwd: str | None = None,
     ) -> LeanResult:
         """Run an arbitrary command and capture output."""
-        effective_timeout = timeout or self.timeout
+        effective_timeout = timeout if timeout is not None else self.timeout
         effective_cwd = cwd or self.project_dir
         try:
             proc = subprocess.run(
@@ -73,6 +73,8 @@ class LeanRunner:
             )
         except subprocess.TimeoutExpired:
             return LeanResult(stdout="", stderr="", returncode=-1, timed_out=True)
+        except (FileNotFoundError, OSError) as e:
+            return LeanResult(stdout="", stderr=str(e), returncode=-1, timed_out=False)
 
     def run_lake(self, *args: str, timeout: int | None = None) -> LeanResult:
         """Run a `lake` command in the project directory."""
