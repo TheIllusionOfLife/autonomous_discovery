@@ -105,3 +105,23 @@ def test_phase2_builds_default_verifier_with_project_context(
         top_k=1,
     )
     assert captured["project_dir"] is not None
+
+
+def test_graph_cache_is_bounded(tmp_path: Path) -> None:
+    import autonomous_discovery.pipeline.phase2 as phase2
+
+    phase2._GRAPH_CACHE.clear()
+
+    for i in range(phase2._MAX_CACHE_SIZE + 2):
+        run_dir = tmp_path / f"case_{i}"
+        run_dir.mkdir(parents=True, exist_ok=True)
+        premises_path, decl_types_path = _write_minimal_data(run_dir)
+        out_dir = run_dir / "out"
+        run_phase2_cycle(
+            premises_path=premises_path,
+            decl_types_path=decl_types_path,
+            output_dir=out_dir,
+            top_k=1,
+        )
+
+    assert len(phase2._GRAPH_CACHE) == phase2._MAX_CACHE_SIZE

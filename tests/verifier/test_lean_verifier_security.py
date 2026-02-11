@@ -38,3 +38,11 @@ def test_verifier_truncates_stderr_payload() -> None:
 
     assert result.success is False
     assert len(result.stderr) <= 220
+
+
+def test_verifier_allows_identifiers_containing_io_substring() -> None:
+    verifier = LeanVerifier(runner=FakeRunner())
+
+    result = verifier.verify("theorem AIO.foo : True", "by\n  trivial")
+
+    assert result.success is True
