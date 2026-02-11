@@ -48,6 +48,7 @@ OfNat.ofNat : Prop
         decl_types_path=decl_types_path,
         output_dir=output_dir,
         top_k=5,
+        trusted_local_run=True,
     )
 
     metrics_path = output_dir / "phase2_cycle_metrics.json"
@@ -57,6 +58,7 @@ OfNat.ofNat : Prop
     assert attempts_path.exists()
     assert summary["gap_count"] >= 1
     assert summary["conjecture_count"] >= 1
+    assert summary["runtime_ready"] is True
     assert summary["verification_success_count"] >= 0
     assert 0.0 <= summary["success_rate"] <= 1.0
 
