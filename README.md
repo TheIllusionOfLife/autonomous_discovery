@@ -1,42 +1,33 @@
 # autonomous_discovery
 
-Autonomous mathematical discovery system targeting Lean 4 + Mathlib.
+Autonomous mathematical discovery system for Lean 4 + Mathlib.
 
-## Quick start
+The repository currently implements:
+- Phase 1: analogical gap detection and pilot artifact generation.
+- Phase 2: deterministic discovery loop (gap -> conjecture -> filter/novelty -> proof attempts -> Lean verification).
 
-```bash
-uv sync
-```
-
-## Quality checks
+## Quick Start
 
 ```bash
-uv run ruff check src tests
-uv run ruff format --check src tests
-uv run pytest -q
-uv run pytest -m integration -q
+uv sync --dev
+git submodule update --init --recursive
 ```
 
-## Gap detector (Phase 1)
+## Run Commands
 
-Generate top-k analogical gap candidates:
+Generate Phase 1 gap candidates:
 
 ```bash
 uv run python -m autonomous_discovery.gap_detector.cli --top-k 20
 ```
 
-Run the pilot harness and emit review artifacts:
+Generate pilot artifacts for manual review:
 
 ```bash
 uv run python -m autonomous_discovery.gap_detector.pilot_cli --top-k 20
 ```
 
-Artifacts are written under `data/processed/`:
-- `gap_candidates.jsonl`
-- `top{K}_label_template.csv` (for example `top20_label_template.csv`)
-- `phase1_metrics.json`
-
-After labeling `label_non_trivial` in the CSV, compute go/no-go metrics:
+Evaluate labeled top-k pilot outputs:
 
 ```bash
 uv run python -m autonomous_discovery.gap_detector.evaluate_cli \
@@ -45,32 +36,43 @@ uv run python -m autonomous_discovery.gap_detector.evaluate_cli \
   --top-k 20
 ```
 
-This updates `phase1_metrics.json` with `topk_precision`, `detection_rate`,
-`non_trivial_count`, and `go_no_go_status`. For `--top-k 20`, a compatibility
-key `top20_precision` is also populated.
-
-## Phase 2 vertical slice
-
-Run one deterministic discovery cycle (gap -> conjecture -> verification):
+Run one Phase 2 cycle (sandboxed verifier mode):
 
 ```bash
 uv run python -m autonomous_discovery.phase2_cli --top-k 20 --proof-retry-budget 3
 ```
 
-By default verification requires a sandbox runtime (`nsjail`). To run without a
-sandbox on a trusted local machine, explicitly acknowledge the risk:
+Trusted local mode (unsandboxed; explicit acknowledgment required):
 
 ```bash
 uv run python -m autonomous_discovery.phase2_cli \
   --trusted-local-run \
-  --i-understand-unsafe
+  --i-understand-unsafe \
+  --top-k 20 \
+  --proof-retry-budget 3
 ```
 
-Artifacts are written under `data/processed/`:
-- `phase2_attempts.jsonl`
-- `phase2_cycle_metrics.json`
+## Data and Artifacts
 
-`phase2_cycle_metrics.json` includes runtime and gating observability fields:
-- `verification_mode`, `lean_available`, `sandbox_available`, `runtime_ready`, `skipped_reason`
-- `filtered_out_count`, `filter_pass_count`, `filter_reject_reasons`
-- `duplicate_count`, `novel_count`, `novelty_unknown_count`
+- Inputs: `data/raw/premises.txt`, `data/raw/decl_types.txt`
+- Generated outputs: `data/processed/`
+- Main Phase 2 artifacts:
+  - `phase2_attempts.jsonl`
+  - `phase2_cycle_metrics.json`
+
+## Quality Checks
+
+```bash
+uv run ruff check src tests
+uv run ruff format --check src tests
+uv run pytest -q
+uv run pytest -m integration -q
+```
+
+## Documentation Map
+
+- Developer instructions: `AGENTS.md`
+- Product goals: `PRODUCT.md`
+- Technology decisions: `TECH.md`
+- Codebase layout and conventions: `STRUCTURE.md`
+- Legacy planning/spec documents: `docs/archive/`

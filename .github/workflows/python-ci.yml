@@ -8,6 +8,7 @@ on:
 
 jobs:
   quality:
+    name: Lint + Unit Tests
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -30,3 +31,29 @@ jobs:
 
       - name: Pytest unit suite
         run: uv run pytest -q -m "not integration"
+
+  integration:
+    name: Integration Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          python-version: "3.12"
+
+      - name: Setup Lean toolchain
+        run: |
+          curl https://raw.githubusercontent.com/leanprover/elan/master/elan-init.sh -sSf | sh -s -- -y
+          echo "$HOME/.elan/bin" >> "$GITHUB_PATH"
+          "$HOME/.elan/bin/lean" --version
+          "$HOME/.elan/bin/lake" --version
+
+      - name: Sync dependencies
+        run: uv sync --dev
+
+      - name: Pytest integration suite
+        run: uv run pytest -q -m integration

@@ -1,28 +1,40 @@
-# Python
+# Python bytecode and packaging
 __pycache__/
 *.py[cod]
 *.egg-info/
 dist/
-.venv/
-
-# Lean
-*.olean
 build/
+
+# Virtual environments and tool caches
+.venv/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# Test and coverage artifacts
+.coverage
+.coverage.*
+coverage.xml
+htmlcov/
+
+# Lean build artifacts
+*.olean
 .lake/
 lake-packages/
+lean/**/build/
 
-# Data (large files)
+# Data outputs (runtime/generated)
 data/raw/
 data/processed/
 
-# Environment
+# Environment files
 .env
 .env.*
 
-# IDE
+# IDE/editor files
 .idea/
 .vscode/
 *.swp
 
-# OS
+# OS metadata
 .DS_Store
