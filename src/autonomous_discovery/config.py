@@ -23,8 +23,24 @@ class ProjectConfig:
     premises_file: str = "premises.txt"
     decl_types_file: str = "decl_types.txt"
 
-    # Domain scope
-    algebra_module_prefix: str = "Mathlib.Algebra"
+    # Domain scope — declaration name prefixes for algebra subset
+    # (Lean names use short prefixes, not full module paths)
+    algebra_name_prefixes: tuple[str, ...] = (
+        "Algebra.",
+        "CommRing.",
+        "Group.",
+        "Ideal.",
+        "LinearMap.",
+        "Module.",
+        "MonoidHom.",
+        "MulAction.",
+        "Polynomial.",
+        "Ring.",
+        "RingHom.",
+        "Subgroup.",
+        "Submodule.",
+        "Subring.",
+    )
 
     # Data leakage cutoff — theorems after this date are held out
     cutoff_date: date = date(2024, 8, 1)

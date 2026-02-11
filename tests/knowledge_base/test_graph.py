@@ -85,6 +85,17 @@ Mathlib.Topology.Basic.continuous_id
         subgraph = graph.filter_by_module_prefix("NonExistent.Module")
         assert subgraph.node_count == 0
 
+    def test_filter_by_name_prefixes(self, graph: MathlibGraph) -> None:
+        """Filter by declaration name prefixes (how real Mathlib names work)."""
+        subgraph = graph.filter_by_name_prefixes(["Group.", "Nat."])
+        assert subgraph.has_node("Nat.add_comm")
+        assert subgraph.has_node("Group.inv_mul_cancel")
+        assert not subgraph.has_node("List.toFinset.ext_iff")
+
+    def test_filter_by_name_prefixes_empty(self, graph: MathlibGraph) -> None:
+        subgraph = graph.filter_by_name_prefixes(["ZZZ."])
+        assert subgraph.node_count == 0
+
 
 class TestGraphStatistics:
     def test_statistics_keys(self, graph: MathlibGraph) -> None:

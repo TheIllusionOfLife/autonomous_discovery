@@ -28,10 +28,9 @@ class TestFullGraph:
         assert stats["node_count"] > 150_000, f"Expected >150K nodes, got {stats['node_count']}"
         assert stats["edge_count"] > 500_000, f"Expected >500K edges, got {stats['edge_count']}"
 
-    def test_algebra_subgraph(self, full_graph: MathlibGraph) -> None:
+    def test_algebra_subgraph(self, full_graph: MathlibGraph, config: ProjectConfig) -> None:
         """Algebra subgraph should have substantial size."""
-        config = ProjectConfig()
-        algebra = full_graph.filter_by_module_prefix(config.algebra_module_prefix)
+        algebra = full_graph.filter_by_name_prefixes(list(config.algebra_name_prefixes))
         stats = algebra.get_statistics()
         print(f"\nAlgebra subgraph: {stats}")
         assert stats["node_count"] > 1000, f"Expected >1K algebra nodes, got {stats['node_count']}"

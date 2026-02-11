@@ -77,6 +77,16 @@ class MathlibGraph:
         subgraph = self._graph.subgraph(matching).copy()
         return MathlibGraph(subgraph)
 
+    def filter_by_name_prefixes(self, prefixes: list[str]) -> MathlibGraph:
+        """Return a new MathlibGraph containing only nodes whose name starts with any prefix.
+
+        Declaration names in Mathlib use short prefixes (e.g. 'Algebra.', 'Group.')
+        rather than full module paths.
+        """
+        matching = [n for n in self._graph.nodes if any(n.startswith(p) for p in prefixes)]
+        subgraph = self._graph.subgraph(matching).copy()
+        return MathlibGraph(subgraph)
+
     def get_statistics(self) -> dict[str, Any]:
         return {
             "node_count": self.node_count,
