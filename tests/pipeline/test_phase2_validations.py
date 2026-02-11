@@ -280,6 +280,7 @@ def test_phase2_applies_filter_and_novelty_metrics(tmp_path: Path) -> None:
     assert summary["filter_pass_count"] == 1
     assert summary["duplicate_count"] == 1
     assert summary["novel_count"] == 0
+    assert summary["novelty_reason_counts"] == {"exact_duplicate": 1}
 
 
 def test_phase2_uses_runtime_status_fallback_when_verifier_lacks_method(tmp_path: Path) -> None:
