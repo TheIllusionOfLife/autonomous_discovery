@@ -1,0 +1,14 @@
+---
+theorem
+Nat.add_comm
+∀ (n m : Nat), n + m = m + n
+---
+definition
+List.toFinset
+{α : Type u_1} → [inst : DecidableEq α] → List α → Finset α
+---
+theorem
+TopologicalSpace.OpenNhds.map_id_obj
+∀ {X : TopCat} (x : ↑X)
+  (U : TopologicalSpace.OpenNhds (↑(CategoryTheory.CategoryStruct.id X) x)),
+  (TopologicalSpace.OpenNhds.map (CategoryTheory.CategoryStruct.id X) x).obj U = U
