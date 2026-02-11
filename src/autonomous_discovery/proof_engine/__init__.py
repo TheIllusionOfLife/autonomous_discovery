@@ -1,1 +1,9 @@
-"""Proof engine: generates Lean 4 proof attempts via local 7B model + API fallback (Week 7-8)."""
+"""Proof engine implementations."""
+
+from autonomous_discovery.proof_engine.models import ProofAttempt
+from autonomous_discovery.proof_engine.simple_engine import SimpleProofEngine
+
+__all__ = [
+    "ProofAttempt",
+    "SimpleProofEngine",
+]

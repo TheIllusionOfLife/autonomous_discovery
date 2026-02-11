@@ -48,3 +48,15 @@ uv run python -m autonomous_discovery.gap_detector.evaluate_cli \
 This updates `phase1_metrics.json` with `topk_precision`, `detection_rate`,
 `non_trivial_count`, and `go_no_go_status`. For `--top-k 20`, a compatibility
 key `top20_precision` is also populated.
+
+## Phase 2 vertical slice
+
+Run one deterministic discovery cycle (gap -> conjecture -> verification):
+
+```bash
+uv run python -m autonomous_discovery.phase2_cli --top-k 20 --proof-retry-budget 3
+```
+
+Artifacts are written under `data/processed/`:
+- `phase2_attempts.jsonl`
+- `phase2_cycle_metrics.json`
