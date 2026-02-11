@@ -35,14 +35,17 @@ def read_conjectures(path: Path) -> list[ConjectureCandidate]:
             metadata_raw = row.get("metadata", {})
             if not isinstance(metadata_raw, dict):
                 raise ValueError("metadata must be a JSON object")
-            items.append(
-                ConjectureCandidate(
-                    gap_missing_decl=row["gap_missing_decl"],
-                    lean_statement=row["lean_statement"],
-                    rationale=row["rationale"],
-                    model_id=row["model_id"],
-                    temperature=float(row["temperature"]),
-                    metadata={str(k): str(v) for k, v in metadata_raw.items()},
+            try:
+                items.append(
+                    ConjectureCandidate(
+                        gap_missing_decl=row["gap_missing_decl"],
+                        lean_statement=row["lean_statement"],
+                        rationale=row["rationale"],
+                        model_id=row["model_id"],
+                        temperature=float(row["temperature"]),
+                        metadata={str(k): str(v) for k, v in metadata_raw.items()},
+                    )
                 )
-            )
+            except KeyError as exc:
+                raise ValueError(f"Missing required field in JSONL line: {exc}") from exc
     return items

@@ -51,15 +51,15 @@ class LeanVerifier:
 
         with TemporaryDirectory(prefix="autonomous_discovery_lean_") as tmp_dir:
             lean_path = Path(tmp_dir) / "Candidate.lean"
+            content = f"import Mathlib\n\n{statement} :=\n{proof_script}\n"
             lean_path.write_text(
-                f"{statement} :=\n{proof_script}\n",
+                content,
                 encoding="utf-8",
             )
 
             result = self.runner.run_command(
-                ["lean", str(lean_path)],
+                ["lake", "env", "lean", str(lean_path)],
                 timeout=self.timeout,
-                cwd=tmp_dir,
             )
             return VerificationResult(
                 statement=statement,

@@ -14,6 +14,7 @@ from autonomous_discovery.conjecture_generator.template import TemplateConjectur
 from autonomous_discovery.gap_detector.analogical import AnalogicalGapDetector, GapDetectorConfig
 from autonomous_discovery.knowledge_base.graph import MathlibGraph
 from autonomous_discovery.knowledge_base.parser import parse_declaration_types, parse_premises
+from autonomous_discovery.lean_bridge.runner import LeanRunner
 from autonomous_discovery.proof_engine.models import ProofAttempt
 from autonomous_discovery.proof_engine.simple_engine import SimpleProofEngine
 from autonomous_discovery.verifier.lean_verifier import LeanVerifier
@@ -103,7 +104,9 @@ def run_phase2_cycle(
     conjectures = effective_generator.generate(gaps, max_candidates=top_k)
 
     effective_proof_engine = proof_engine or SimpleProofEngine()
-    effective_verifier = verifier or LeanVerifier()
+    effective_verifier = verifier or LeanVerifier(
+        runner=LeanRunner(project_dir=config.lean_project_dir)
+    )
     verifier_available = effective_verifier.is_available()
 
     output_dir.mkdir(parents=True, exist_ok=True)

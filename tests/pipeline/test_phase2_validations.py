@@ -2,7 +2,9 @@ from pathlib import Path
 
 import pytest
 
+from autonomous_discovery.lean_bridge.runner import LeanRunner
 from autonomous_discovery.pipeline.phase2 import run_phase2_cycle
+from autonomous_discovery.verifier.models import VerificationResult
 
 
 def _write_minimal_data(tmp_path: Path) -> tuple[Path, Path]:
@@ -70,3 +72,36 @@ def test_phase2_emits_observability_fields_and_cache_signal(tmp_path: Path) -> N
     assert "verifier_available" in first
     assert "failure_counts" in first
     assert second["graph_cache_hit"] is True
+
+
+def test_phase2_builds_default_verifier_with_project_context(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    premises_path, decl_types_path = _write_minimal_data(tmp_path)
+    output_dir = tmp_path / "out"
+    captured: dict[str, str | None] = {"project_dir": None}
+
+    class FakeVerifier:
+        def __init__(self, runner: LeanRunner) -> None:
+            captured["project_dir"] = runner.project_dir
+
+        def is_available(self) -> bool:
+            return False
+
+        def verify(self, statement: str, proof_script: str) -> VerificationResult:
+            return VerificationResult(
+                statement=statement,
+                proof_script=proof_script,
+                success=False,
+                stderr="Lean executable is not available on PATH.",
+                timed_out=False,
+            )
+
+    monkeypatch.setattr("autonomous_discovery.pipeline.phase2.LeanVerifier", FakeVerifier)
+    run_phase2_cycle(
+        premises_path=premises_path,
+        decl_types_path=decl_types_path,
+        output_dir=output_dir,
+        top_k=1,
+    )
+    assert captured["project_dir"] is not None

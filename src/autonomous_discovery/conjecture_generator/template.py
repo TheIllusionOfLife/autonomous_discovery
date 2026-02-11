@@ -47,7 +47,7 @@ class TemplateConjectureGenerator:
             candidates.append(
                 ConjectureCandidate(
                     gap_missing_decl=gap.missing_decl,
-                    lean_statement=f"theorem {theorem_name} : Prop",
+                    lean_statement=f"theorem {theorem_name} : True",
                     rationale=rationale,
                     model_id=self.model_id,
                     temperature=self.temperature,

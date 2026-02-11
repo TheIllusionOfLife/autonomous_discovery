@@ -37,4 +37,4 @@ def test_lean_verifier_executes_runner_and_maps_success() -> None:
 
     assert result.success is True
     assert runner.commands
-    assert runner.commands[0][0] == "lean"
+    assert runner.commands[0][:3] == ["lake", "env", "lean"]

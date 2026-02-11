@@ -17,3 +17,14 @@ def test_read_conjectures_rejects_non_dict_metadata(tmp_path: Path) -> None:
 
     with pytest.raises(ValueError, match="metadata"):
         read_conjectures(path)
+
+
+def test_read_conjectures_rejects_missing_required_fields(tmp_path: Path) -> None:
+    path = tmp_path / "missing.jsonl"
+    path.write_text(
+        '{"gap_missing_decl":"X","rationale":"r","model_id":"m","temperature":0.0}\n',
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError, match="Missing required field"):
+        read_conjectures(path)

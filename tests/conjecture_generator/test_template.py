@@ -25,7 +25,7 @@ def test_template_generator_returns_deterministic_top_k_candidates() -> None:
 
     assert len(candidates) == 1
     assert candidates[0].gap_missing_decl == "Ring.one_mul"
-    assert candidates[0].lean_statement == "theorem Ring_one_mul : Prop"
+    assert candidates[0].lean_statement == "theorem Ring_one_mul : True"
     assert candidates[0].model_id == "template-v1"
     assert candidates[0].temperature == 0.0
 

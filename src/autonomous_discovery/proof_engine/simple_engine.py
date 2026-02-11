@@ -28,10 +28,6 @@ class SimpleProofEngine:
             "by\n  aesop",
             "by\n  simp",
         ]
-        if max_attempts > len(scripts):
-            raise ValueError(
-                f"max_attempts={max_attempts} exceeds supported script count={len(scripts)}"
-            )
         capped = scripts[:max_attempts]
         return [
             ProofAttempt(
