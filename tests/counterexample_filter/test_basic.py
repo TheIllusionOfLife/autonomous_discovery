@@ -37,3 +37,19 @@ def test_counterexample_filter_allows_simple_true_statement() -> None:
     decision = f.evaluate(_candidate("theorem ok : True"))
 
     assert decision == FilterDecision(accepted=True, reason="passed_basic_checks")
+
+
+def test_counterexample_filter_rejects_false_without_spaces() -> None:
+    f = BasicCounterexampleFilter()
+
+    decision = f.evaluate(_candidate("theorem bad:False"))
+
+    assert decision == FilterDecision(accepted=False, reason="contains_false_literal")
+
+
+def test_counterexample_filter_rejects_equation_without_spaces() -> None:
+    f = BasicCounterexampleFilter()
+
+    decision = f.evaluate(_candidate("theorem bad : 1=0"))
+
+    assert decision == FilterDecision(accepted=False, reason="contains_obvious_contradiction")

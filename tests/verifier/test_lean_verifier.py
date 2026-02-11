@@ -63,3 +63,16 @@ def test_lean_verifier_runtime_status_trusted_mode_ignores_sandbox() -> None:
     assert status["lean_available"] is True
     assert status["sandbox_available"] is False
     assert status["runtime_ready"] is True
+
+
+def test_lean_verifier_runtime_status_empty_sandbox_prefix_is_unavailable() -> None:
+    verifier = LeanVerifier(
+        runner=FakeRunner(available=True, result=LeanResult("", "", 0, False)),
+        require_sandbox=True,
+        sandbox_command_prefix=("",),
+    )
+
+    status = verifier.runtime_status()
+
+    assert status["sandbox_available"] is False
+    assert status["runtime_ready"] is False

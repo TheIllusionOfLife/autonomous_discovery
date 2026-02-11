@@ -26,3 +26,11 @@ def test_basic_novelty_checker_accepts_new_statement() -> None:
     decision = checker.is_novel("theorem y : True")
 
     assert decision == NoveltyDecision(is_novel=True, reason="novel")
+
+
+def test_basic_novelty_checker_ignores_line_comments_in_normalization() -> None:
+    checker = BasicNoveltyChecker(existing_statements={"theorem x : True -- baseline"})
+
+    decision = checker.is_novel("theorem x : True")
+
+    assert decision == NoveltyDecision(is_novel=False, reason="normalized_duplicate")
