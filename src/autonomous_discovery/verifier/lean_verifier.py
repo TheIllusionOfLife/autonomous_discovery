@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass, field
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -18,13 +19,13 @@ class LeanVerifier:
     timeout: int = 30
     max_stderr_chars: int = 2000
 
-    _disallowed_tokens: tuple[str, ...] = (
-        "run_cmd",
-        "unsafe",
-        "#eval",
-        "#print",
-        "IO.",
-        "open IO",
+    _disallowed_patterns: tuple[re.Pattern[str], ...] = (
+        re.compile(r"\brun_cmd\b", re.IGNORECASE),
+        re.compile(r"\bunsafe\b", re.IGNORECASE),
+        re.compile(r"#eval\b", re.IGNORECASE),
+        re.compile(r"#print\b", re.IGNORECASE),
+        re.compile(r"(?<![A-Za-z0-9_])IO\.", re.IGNORECASE),
+        re.compile(r"\bopen\s+IO\b", re.IGNORECASE),
     )
 
     def is_available(self) -> bool:
@@ -70,8 +71,8 @@ class LeanVerifier:
             )
 
     def _contains_disallowed_content(self, statement: str, proof_script: str) -> bool:
-        payload = f"{statement}\n{proof_script}".lower()
-        return any(token.lower() in payload for token in self._disallowed_tokens)
+        payload = f"{statement}\n{proof_script}"
+        return any(pattern.search(payload) for pattern in self._disallowed_patterns)
 
     def _sanitize_stderr(self, stderr: str, tmp_dir: str) -> str:
         redacted = stderr.replace(tmp_dir, "<tmpdir>")

@@ -38,10 +38,10 @@ def read_conjectures(path: Path) -> list[ConjectureCandidate]:
             try:
                 items.append(
                     ConjectureCandidate(
-                        gap_missing_decl=row["gap_missing_decl"],
-                        lean_statement=row["lean_statement"],
-                        rationale=row["rationale"],
-                        model_id=row["model_id"],
+                        gap_missing_decl=str(row["gap_missing_decl"]),
+                        lean_statement=str(row["lean_statement"]),
+                        rationale=str(row["rationale"]),
+                        model_id=str(row["model_id"]),
                         temperature=float(row["temperature"]),
                         metadata={str(k): str(v) for k, v in metadata_raw.items()},
                     )

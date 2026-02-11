@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import time
+from collections import OrderedDict
 from pathlib import Path
 from typing import Any, Protocol
 
@@ -20,7 +21,8 @@ from autonomous_discovery.proof_engine.simple_engine import SimpleProofEngine
 from autonomous_discovery.verifier.lean_verifier import LeanVerifier
 from autonomous_discovery.verifier.models import VerificationResult
 
-_GRAPH_CACHE: dict[tuple[str, int, int, str, int, int], MathlibGraph] = {}
+_MAX_CACHE_SIZE = 5
+_GRAPH_CACHE: OrderedDict[tuple[str, int, int, str, int, int], MathlibGraph] = OrderedDict()
 
 
 class ProofEngine(Protocol):
@@ -47,12 +49,15 @@ def _file_signature(path: Path) -> tuple[str, int, int]:
 def _load_graph_cached(premises_path: Path, decl_types_path: Path) -> tuple[MathlibGraph, bool]:
     key = (*_file_signature(premises_path), *_file_signature(decl_types_path))
     if key in _GRAPH_CACHE:
+        _GRAPH_CACHE.move_to_end(key)
         return _GRAPH_CACHE[key], True
 
     premises = parse_premises(premises_path.read_text(encoding="utf-8"))
     declarations = parse_declaration_types(decl_types_path.read_text(encoding="utf-8"))
     graph = MathlibGraph.from_raw_data(premises, declarations)
     _GRAPH_CACHE[key] = graph
+    while len(_GRAPH_CACHE) > _MAX_CACHE_SIZE:
+        _GRAPH_CACHE.popitem(last=False)
     return graph, False
 
 
