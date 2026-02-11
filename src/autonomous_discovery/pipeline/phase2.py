@@ -32,6 +32,13 @@ logger = logging.getLogger(__name__)
 
 _MAX_CACHE_SIZE = 5
 _GRAPH_CACHE: OrderedDict[tuple[str, int, int, str, int, int], MathlibGraph] = OrderedDict()
+_DUPLICATE_REASONS = {
+    "exact_duplicate",
+    "normalized_duplicate",
+    "defeq_duplicate",
+    "bi_implication_duplicate",
+    "semantic_duplicate",
+}
 
 
 class ProofEngine(Protocol):
@@ -68,6 +75,7 @@ class GatingOutcome:
     filtered_out_count: int
     filter_pass_count: int
     filter_reject_reasons: tuple[tuple[str, int], ...]
+    novelty_reason_counts: tuple[tuple[str, int], ...]
     duplicate_count: int
     novel_count: int
     novelty_unknown_count: int
@@ -158,6 +166,7 @@ def _gate_conjectures(
     filtered_out_count = 0
     filter_pass_count = 0
     filter_reject_reasons: Counter[str] = Counter()
+    novelty_reason_counts: Counter[str] = Counter()
     duplicate_count = 0
     novel_count = 0
     novelty_unknown_count = 0
@@ -172,10 +181,12 @@ def _gate_conjectures(
 
         filter_pass_count += 1
         novelty_decision = novelty_checker.is_novel(conjecture.lean_statement)
+        reason = novelty_decision.reason or "unknown"
+        novelty_reason_counts[reason] += 1
         if novelty_decision.is_novel:
             novel_count += 1
             verifiable_conjectures.append(conjecture)
-        elif novelty_decision.reason:
+        elif reason in _DUPLICATE_REASONS:
             duplicate_count += 1
         else:
             novelty_unknown_count += 1
@@ -185,6 +196,7 @@ def _gate_conjectures(
         filtered_out_count=filtered_out_count,
         filter_pass_count=filter_pass_count,
         filter_reject_reasons=tuple(sorted(filter_reject_reasons.items())),
+        novelty_reason_counts=tuple(sorted(novelty_reason_counts.items())),
         duplicate_count=duplicate_count,
         novel_count=novel_count,
         novelty_unknown_count=novelty_unknown_count,
@@ -334,6 +346,7 @@ def run_phase2_cycle(
         "filtered_out_count": gating.filtered_out_count,
         "filter_pass_count": gating.filter_pass_count,
         "filter_reject_reasons": dict(gating.filter_reject_reasons),
+        "novelty_reason_counts": dict(gating.novelty_reason_counts),
         "duplicate_count": gating.duplicate_count,
         "novel_count": gating.novel_count,
         "novelty_unknown_count": gating.novelty_unknown_count,
