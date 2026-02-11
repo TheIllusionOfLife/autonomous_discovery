@@ -4,7 +4,9 @@ from pathlib import Path
 import pytest
 
 from autonomous_discovery.conjecture_generator.models import ConjectureCandidate
+from autonomous_discovery.counterexample_filter.basic import FilterDecision
 from autonomous_discovery.lean_bridge.runner import LeanRunner
+from autonomous_discovery.novelty_checker.basic import NoveltyDecision
 from autonomous_discovery.pipeline.phase2 import run_phase2_cycle
 from autonomous_discovery.proof_engine.models import ProofAttempt
 from autonomous_discovery.verifier.models import VerificationResult
@@ -218,26 +220,16 @@ def test_phase2_applies_filter_and_novelty_metrics(tmp_path: Path) -> None:
             ]
 
     class FakeFilter:
-        def evaluate(self, conjecture: ConjectureCandidate) -> object:
-            class Decision:
-                def __init__(self, accepted: bool, reason: str) -> None:
-                    self.accepted = accepted
-                    self.reason = reason
-
+        def evaluate(self, conjecture: ConjectureCandidate) -> FilterDecision:
             if conjecture.gap_missing_decl == "B":
-                return Decision(False, "rejected_in_test")
-            return Decision(True, "ok")
+                return FilterDecision(False, "rejected_in_test")
+            return FilterDecision(True, "ok")
 
     class FakeNoveltyChecker:
-        def is_novel(self, statement: str) -> object:
-            class Decision:
-                def __init__(self, is_novel: bool, reason: str) -> None:
-                    self.is_novel = is_novel
-                    self.reason = reason
-
+        def is_novel(self, statement: str) -> NoveltyDecision:
             if statement == "theorem A : True":
-                return Decision(False, "exact_duplicate")
-            return Decision(True, "novel")
+                return NoveltyDecision(False, "exact_duplicate")
+            return NoveltyDecision(True, "novel")
 
     class FakeProofEngine:
         def build_attempts(

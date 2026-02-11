@@ -76,6 +76,7 @@ def test_phase2_cli_reports_missing_input(capsys: pytest.CaptureFixture[str]) ->
     assert "not found" in captured.err.lower()
 
 
+@pytest.mark.integration
 def test_phase2_cli_secure_mode_reports_missing_sandbox(
     tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
@@ -119,6 +120,7 @@ def test_phase2_cli_secure_mode_reports_missing_sandbox(
         assert "lean executable is not available" in captured.err.lower()
 
 
+@pytest.mark.integration
 def test_phase2_cli_trusted_local_run_allows_missing_sandbox(tmp_path: Path) -> None:
     premises_path = tmp_path / "premises.txt"
     decl_types_path = tmp_path / "decl_types.txt"
@@ -160,6 +162,7 @@ def test_phase2_cli_trusted_local_run_allows_missing_sandbox(tmp_path: Path) -> 
         assert code == 1
 
 
+@pytest.mark.integration
 def test_phase2_cli_trusted_local_run_requires_explicit_ack(
     tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
