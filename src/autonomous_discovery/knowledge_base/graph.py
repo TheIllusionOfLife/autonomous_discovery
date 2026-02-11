@@ -74,6 +74,14 @@ class MathlibGraph:
     def get_edge_attrs(self, source: str, target: str) -> dict[str, Any]:
         return dict(self._graph.edges[source, target])
 
+    def nodes(self) -> list[str]:
+        """Return all declaration names in the graph."""
+        return list(self._graph.nodes)
+
+    def dependencies_of(self, name: str) -> list[str]:
+        """Return direct dependencies of a declaration."""
+        return list(self._graph.successors(name))
+
     # --- Analysis methods ---
 
     def filter_by_module_prefix(self, prefix: str) -> MathlibGraph:
