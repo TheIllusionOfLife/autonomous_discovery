@@ -31,11 +31,11 @@ def run_phase1_pilot(
     graph = MathlibGraph.from_raw_data(premises, declarations)
 
     detector = AnalogicalGapDetector(config=GapDetectorConfig(top_k=top_k))
-    candidates = detector.detect(graph, top_k=top_k)
+    candidates = detector.detect(graph)
 
     output_dir.mkdir(parents=True, exist_ok=True)
     candidates_path = output_dir / "gap_candidates.jsonl"
-    labels_path = output_dir / "top20_label_template.csv"
+    labels_path = output_dir / f"top{top_k}_label_template.csv"
     metrics_path = output_dir / "phase1_metrics.json"
 
     write_gap_report(candidates, candidates_path)
@@ -48,9 +48,13 @@ def run_phase1_pilot(
         "candidates_path": str(candidates_path),
         "labels_path": str(labels_path),
         "metrics_path": str(metrics_path),
-        "top20_precision": None,
+        "topk_precision": None,
         "detection_rate": None,
+        "non_trivial_count": None,
+        "go_no_go_status": "pending",
     }
+    if top_k == 20:
+        summary["top20_precision"] = None
     metrics_path.write_text(json.dumps(summary, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     return summary
 

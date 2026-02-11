@@ -5,6 +5,7 @@ from autonomous_discovery.gap_detector.analogical import (
     GapCandidate,
     GapDetectorConfig,
 )
+from autonomous_discovery.gap_detector.evaluate_cli import main as evaluate_metrics_cli_main
 from autonomous_discovery.gap_detector.evaluation import (
     build_topk_label_template_rows,
     compute_detection_rate,
@@ -22,6 +23,7 @@ __all__ = [
     "build_topk_label_template_rows",
     "compute_detection_rate",
     "compute_topk_precision",
+    "evaluate_metrics_cli_main",
     "read_gap_report",
     "run_phase1_pilot",
     "scan_seed_annotations",

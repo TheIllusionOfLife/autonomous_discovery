@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -16,6 +17,9 @@ class SeedHint:
     content: str
 
 
+TODO_WORD_RE = re.compile(r"\btodo\b", flags=re.IGNORECASE)
+
+
 def scan_seed_annotations(paths: list[Path]) -> list[SeedHint]:
     """Scan Lean files for TODO/sorry markers."""
     hints: list[SeedHint] = []
@@ -24,7 +28,7 @@ def scan_seed_annotations(paths: list[Path]) -> list[SeedHint]:
         for index, line in enumerate(text.splitlines(), start=1):
             stripped = line.strip()
             lowered = stripped.lower()
-            if "todo" in lowered:
+            if TODO_WORD_RE.search(stripped):
                 hints.append(
                     SeedHint(
                         file_path=str(path),

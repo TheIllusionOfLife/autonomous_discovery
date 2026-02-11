@@ -24,3 +24,17 @@ def bar : Nat := by
 
     todo = next(h for h in hints if h.kind == "todo")
     assert "strengthen hypothesis" in todo.content
+
+
+def test_scan_seed_annotations_ignores_todo_substring_inside_identifier(tmp_path) -> None:
+    lean_file = tmp_path / "Mathlib" / "Algebra" / "Identifier.lean"
+    lean_file.parent.mkdir(parents=True)
+    lean_file.write_text(
+        """\
+def pseudoTopologicalGroupTodoCounter : Nat := 1
+def done : Nat := 2
+"""
+    )
+
+    hints = scan_seed_annotations([lean_file])
+    assert hints == []
