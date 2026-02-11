@@ -63,6 +63,8 @@ OfNat.ofNat : Prop
     metrics = json.loads(metrics_path.read_text(encoding="utf-8"))
     assert metrics["artifacts"]["attempts_path"] == str(attempts_path)
 
-    lines = [line for line in attempts_path.read_text(encoding="utf-8").splitlines() if line.strip()]
+    lines = [
+        line for line in attempts_path.read_text(encoding="utf-8").splitlines() if line.strip()
+    ]
     assert lines
     json.loads(lines[0])

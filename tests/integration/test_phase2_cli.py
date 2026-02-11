@@ -64,7 +64,9 @@ OfNat.ofNat : Prop
 
 
 def test_phase2_cli_reports_missing_input(capsys: pytest.CaptureFixture[str]) -> None:
-    code = main(["--premises-path", "missing-premises.txt", "--decl-types-path", "missing-decls.txt"])
+    code = main(
+        ["--premises-path", "missing-premises.txt", "--decl-types-path", "missing-decls.txt"]
+    )
 
     captured = capsys.readouterr()
     assert code == 1
