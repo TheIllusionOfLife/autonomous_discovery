@@ -30,6 +30,13 @@ class LeanVerifier:
         re.compile(r"(?<![A-Za-z0-9_])IO\.", re.IGNORECASE),
         re.compile(r"\bopen\s+IO\b", re.IGNORECASE),
     )
+    _statement_pattern: re.Pattern[str] = re.compile(
+        r"^\s*theorem\s+[A-Za-z_][A-Za-z0-9_]*\s*:\s*True\s*$"
+    )
+    _proof_pattern: re.Pattern[str] = re.compile(
+        r"^\s*by\s*\n\s*(exact\?|aesop|simp|trivial)\s*$",
+        re.IGNORECASE,
+    )
 
     def is_available(self) -> bool:
         return self.runner.check_lean_available()
@@ -50,6 +57,17 @@ class LeanVerifier:
                 proof_script=proof_script,
                 success=False,
                 stderr="Unsafe Lean directives are not permitted in verifier inputs.",
+                timed_out=False,
+            )
+        if not self._is_supported_input_shape(statement, proof_script):
+            return VerificationResult(
+                statement=statement,
+                proof_script=proof_script,
+                success=False,
+                stderr=(
+                    "Verifier only accepts constrained theorem/proof shapes for safety. "
+                    "Use trusted mode with a separate sandboxed backend for arbitrary code."
+                ),
                 timed_out=False,
             )
         if self.require_sandbox and not self._sandbox_available():
@@ -101,3 +119,8 @@ class LeanVerifier:
         if not self.sandbox_command_prefix:
             return False
         return shutil.which(self.sandbox_command_prefix[0]) is not None
+
+    def _is_supported_input_shape(self, statement: str, proof_script: str) -> bool:
+        return bool(self._statement_pattern.match(statement)) and bool(
+            self._proof_pattern.match(proof_script)
+        )

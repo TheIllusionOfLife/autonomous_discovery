@@ -1,3 +1,5 @@
+import pytest
+
 from autonomous_discovery.conjecture_generator.template import TemplateConjectureGenerator
 from autonomous_discovery.gap_detector.analogical import GapCandidate
 
@@ -46,3 +48,17 @@ def test_template_generator_includes_signal_metadata() -> None:
     assert candidate.metadata["target_family"] == "Ring."
     assert candidate.metadata["score"] == "0.550000"
     assert candidate.metadata["signal_cross_family_overlap"] == "0.250000"
+
+
+def test_template_generator_rejects_newline_in_missing_decl() -> None:
+    gap = GapCandidate(
+        source_decl="Group.inv_mul_cancel",
+        target_family="Ring.",
+        missing_decl='Ring.inv_mul_cancel\n#eval IO.println "x"',
+        score=0.55,
+        signals={"cross_family_overlap": 0.25},
+    )
+    generator = TemplateConjectureGenerator()
+
+    with pytest.raises(ValueError, match="newline"):
+        generator.generate([gap], max_candidates=1)

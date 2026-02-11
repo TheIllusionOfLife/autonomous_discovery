@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 
 from autonomous_discovery.conjecture_generator.models import ConjectureCandidate
@@ -31,7 +32,7 @@ class TemplateConjectureGenerator:
 
         candidates: list[ConjectureCandidate] = []
         for gap in ranked[:max_candidates]:
-            theorem_name = gap.missing_decl.replace(".", "_")
+            theorem_name = self._safe_theorem_name(gap.missing_decl)
             rationale = (
                 f"Analogical transfer from {gap.source_decl} to {gap.target_family} "
                 f"for missing declaration {gap.missing_decl}."
@@ -56,3 +57,14 @@ class TemplateConjectureGenerator:
             )
 
         return candidates
+
+    def _safe_theorem_name(self, missing_decl: str) -> str:
+        if "\n" in missing_decl or "\r" in missing_decl:
+            raise ValueError("missing_decl contains newline characters")
+        normalized = missing_decl.replace(".", "_")
+        normalized = re.sub(r"[^A-Za-z0-9_]", "_", normalized)
+        if not normalized:
+            raise ValueError("missing_decl produced empty theorem name")
+        if not re.match(r"^[A-Za-z_]", normalized):
+            normalized = f"T_{normalized}"
+        return normalized
