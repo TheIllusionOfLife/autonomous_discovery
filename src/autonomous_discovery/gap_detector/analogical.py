@@ -58,6 +58,10 @@ class AnalogicalGapDetector:
                 if not suffix:
                     continue
 
+                pr_signal = pagerank.get(source_decl, 0.0) / max_pr if max_pr > 0 else 0.0
+                descendants = graph.descendants_count(source_decl)
+                descendant_signal = descendants / (descendants + 10) if descendants > 0 else 0.0
+
                 for target_prefix in self.config.family_prefixes:
                     if target_prefix == source_prefix:
                         continue
@@ -77,11 +81,6 @@ class AnalogicalGapDetector:
                     )
                     dep_overlap = (
                         translated_hits / translated_total if translated_total > 0 else 0.0
-                    )
-                    pr_signal = pagerank.get(source_decl, 0.0) / max_pr if max_pr > 0 else 0.0
-                    descendants = graph.descendants_count(source_decl)
-                    descendant_signal = (
-                        descendants / (descendants + 10) if descendants > 0 else 0.0
                     )
 
                     score = (
