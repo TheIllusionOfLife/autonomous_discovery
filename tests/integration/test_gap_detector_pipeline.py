@@ -61,3 +61,17 @@ OfNat.ofNat : Prop
     records = [json.loads(line) for line in output_path.read_text().splitlines() if line]
     assert records
     assert any(r["missing_decl"] == "Ring.one_mul" for r in records)
+
+
+def test_gap_detector_cli_reports_missing_input(capsys: pytest.CaptureFixture[str]) -> None:
+    code = main(
+        [
+            "--premises-path",
+            "does-not-exist-premises.txt",
+            "--decl-types-path",
+            "does-not-exist-decls.txt",
+        ]
+    )
+    captured = capsys.readouterr()
+    assert code != 0
+    assert "not found" in captured.err.lower()

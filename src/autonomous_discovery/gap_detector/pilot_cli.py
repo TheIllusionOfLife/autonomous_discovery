@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import sys
 from pathlib import Path
 
 from autonomous_discovery.config import ProjectConfig
@@ -23,12 +24,16 @@ def build_parser() -> argparse.ArgumentParser:
 
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
-    run_phase1_pilot(
-        premises_path=args.premises_path,
-        decl_types_path=args.decl_types_path,
-        output_dir=args.output_dir,
-        top_k=args.top_k,
-    )
+    try:
+        run_phase1_pilot(
+            premises_path=args.premises_path,
+            decl_types_path=args.decl_types_path,
+            output_dir=args.output_dir,
+            top_k=args.top_k,
+        )
+    except FileNotFoundError as exc:
+        print(f"Input file not found: {exc.filename}", file=sys.stderr)
+        return 1
     return 0
 
 

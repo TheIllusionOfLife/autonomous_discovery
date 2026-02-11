@@ -29,6 +29,9 @@ class GapDetectorConfig:
     weight_dependency_overlap: float = 0.55
     weight_pagerank: float = 0.30
     weight_descendants: float = 0.15
+    min_cross_family_hits: int = 1
+    min_cross_family_overlap: float = 0.25
+    require_namespace_stem_match: bool = True
 
 
 @dataclass(slots=True)
@@ -37,7 +40,7 @@ class AnalogicalGapDetector:
 
     config: GapDetectorConfig = field(default_factory=GapDetectorConfig)
 
-    def detect(self, graph: MathlibGraph, top_k: int = 20) -> list[GapCandidate]:
+    def detect(self, graph: MathlibGraph, top_k: int | None = None) -> list[GapCandidate]:
         """Return top-k ranked gap candidates."""
         nodes = set(graph.nodes())
         if not nodes:
@@ -51,12 +54,23 @@ class AnalogicalGapDetector:
             prefix: {n for n in nodes if n.startswith(prefix)}
             for prefix in self.config.family_prefixes
         }
+        family_stems = {
+            prefix: {
+                stem
+                for name in family_nodes.get(prefix, set())
+                if (stem := self._namespace_stem(self._suffix_after_prefix(name, prefix)))
+                is not None
+            }
+            for prefix in self.config.family_prefixes
+        }
 
         for source_prefix in self.config.family_prefixes:
             for source_decl in family_nodes.get(source_prefix, set()):
-                suffix = source_decl[len(source_prefix) :]
+                suffix = self._suffix_after_prefix(source_decl, source_prefix)
                 if not suffix:
                     continue
+                suffix_stem = self._namespace_stem(suffix)
+                source_deps = graph.dependencies_of(source_decl)
 
                 pr_signal = pagerank.get(source_decl, 0.0) / max_pr if max_pr > 0 else 0.0
                 descendants = graph.descendants_count(source_decl)
@@ -72,16 +86,28 @@ class AnalogicalGapDetector:
                     if missing_decl in nodes:
                         continue
 
-                    translated_total, translated_hits = self._translated_dependency_stats(
-                        graph=graph,
-                        source_decl=source_decl,
-                        source_prefix=source_prefix,
-                        target_prefix=target_prefix,
-                        nodes=nodes,
+                    namespace_stem_match = suffix_stem is None or suffix_stem in family_stems.get(
+                        target_prefix, set()
+                    )
+                    if self.config.require_namespace_stem_match and not namespace_stem_match:
+                        continue
+
+                    translated_total, translated_hits, cross_total, cross_hits = (
+                        self._translated_dependency_stats(
+                            source_deps=source_deps,
+                            source_prefix=source_prefix,
+                            target_prefix=target_prefix,
+                            nodes=nodes,
+                        )
                     )
                     dep_overlap = (
                         translated_hits / translated_total if translated_total > 0 else 0.0
                     )
+                    cross_overlap = cross_hits / cross_total if cross_total > 0 else 0.0
+                    if cross_hits < self.config.min_cross_family_hits:
+                        continue
+                    if cross_overlap < self.config.min_cross_family_overlap:
+                        continue
 
                     score = (
                         self.config.weight_dependency_overlap * dep_overlap
@@ -104,34 +130,51 @@ class AnalogicalGapDetector:
                                 "translated_dependency_total": float(translated_total),
                                 "source_pagerank": pr_signal,
                                 "source_descendants": float(descendants),
+                                "cross_family_hits": float(cross_hits),
+                                "cross_family_total": float(cross_total),
+                                "cross_family_overlap": cross_overlap,
+                                "namespace_stem_match": 1.0 if namespace_stem_match else 0.0,
                             },
                         )
                     )
 
         ranked.sort(key=lambda c: (-c.score, c.missing_decl, c.source_decl, c.target_family))
-        effective_k = min(top_k, self.config.top_k)
-        return ranked[:effective_k]
+        effective_top_k = self.config.top_k if top_k is None else top_k
+        return ranked[:effective_top_k]
 
     def _translated_dependency_stats(
         self,
         *,
-        graph: MathlibGraph,
-        source_decl: str,
+        source_deps: list[str],
         source_prefix: str,
         target_prefix: str,
         nodes: set[str],
-    ) -> tuple[int, int]:
-        deps = graph.dependencies_of(source_decl)
-        if not deps:
-            return 0, 0
+    ) -> tuple[int, int, int, int]:
+        if not source_deps:
+            return 0, 0, 0, 0
 
-        translated_total = len(deps)
+        translated_total = len(source_deps)
         translated_hits = 0
-        for dep in deps:
+        cross_total = 0
+        cross_hits = 0
+        for dep in source_deps:
             if dep.startswith(source_prefix):
+                cross_total += 1
                 translated_dep = f"{target_prefix}{dep[len(source_prefix) :]}"
             else:
                 translated_dep = dep
             if translated_dep in nodes:
                 translated_hits += 1
-        return translated_total, translated_hits
+                if dep.startswith(source_prefix):
+                    cross_hits += 1
+        return translated_total, translated_hits, cross_total, cross_hits
+
+    def _namespace_stem(self, suffix: str) -> str | None:
+        if "." not in suffix:
+            return None
+        stem = suffix.split(".", maxsplit=1)[0]
+        return stem if stem else None
+
+    def _suffix_after_prefix(self, decl_name: str, prefix: str) -> str:
+        suffix = decl_name[len(prefix) :]
+        return suffix.lstrip(".")
