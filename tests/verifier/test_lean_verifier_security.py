@@ -61,8 +61,15 @@ def test_verifier_requires_sandbox_runtime_by_default() -> None:
 
 
 def test_verifier_rejects_unsupported_statement_shape() -> None:
-    verifier = LeanVerifier(runner=FakeRunner(), require_sandbox=False)
+    verifier = LeanVerifier(runner=FakeRunner(), require_sandbox=True)
     result = verifier.verify("theorem X : Nat", "by\n  trivial")
 
     assert result.success is False
     assert "constrained theorem/proof shapes" in result.stderr.lower()
+
+
+def test_verifier_allows_non_template_statement_in_trusted_mode() -> None:
+    verifier = LeanVerifier(runner=FakeRunner(), require_sandbox=False)
+    result = verifier.verify("theorem X : Nat", "by\n  trivial")
+
+    assert result.success is True

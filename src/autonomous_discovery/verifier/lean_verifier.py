@@ -41,6 +41,16 @@ class LeanVerifier:
     def is_available(self) -> bool:
         return self.runner.check_lean_available()
 
+    def runtime_status(self) -> dict[str, bool]:
+        lean_available = self.is_available()
+        sandbox_available = self._sandbox_available()
+        runtime_ready = lean_available and (sandbox_available or not self.require_sandbox)
+        return {
+            "lean_available": lean_available,
+            "sandbox_available": sandbox_available,
+            "runtime_ready": runtime_ready,
+        }
+
     def verify(self, statement: str, proof_script: str) -> VerificationResult:
         if not self.is_available():
             return VerificationResult(
@@ -59,7 +69,7 @@ class LeanVerifier:
                 stderr="Unsafe Lean directives are not permitted in verifier inputs.",
                 timed_out=False,
             )
-        if not self._is_supported_input_shape(statement, proof_script):
+        if self.require_sandbox and not self._is_supported_input_shape(statement, proof_script):
             return VerificationResult(
                 statement=statement,
                 proof_script=proof_script,
@@ -116,7 +126,7 @@ class LeanVerifier:
         return redacted[: self.max_stderr_chars] + "...<truncated>"
 
     def _sandbox_available(self) -> bool:
-        if not self.sandbox_command_prefix:
+        if not self.sandbox_command_prefix or not self.sandbox_command_prefix[0]:
             return False
         return shutil.which(self.sandbox_command_prefix[0]) is not None
 
