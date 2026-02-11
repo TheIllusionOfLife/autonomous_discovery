@@ -1,3 +1,4 @@
+import shutil
 from pathlib import Path
 
 import pytest
@@ -183,8 +184,12 @@ def test_phase2_trusted_mode_runs_without_sandbox(tmp_path: Path) -> None:
     )
 
     assert summary["verification_mode"] == "trusted_local"
-    assert summary["runtime_ready"] is True
-    assert summary["skipped_reason"] is None
+    if shutil.which("lean"):
+        assert summary["runtime_ready"] is True
+        assert summary["skipped_reason"] is None
+    else:
+        assert summary["runtime_ready"] is False
+        assert summary["skipped_reason"] == "Lean executable is not available on PATH."
 
 
 def test_phase2_applies_filter_and_novelty_metrics(tmp_path: Path) -> None:
