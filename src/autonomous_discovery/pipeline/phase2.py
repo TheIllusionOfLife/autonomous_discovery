@@ -207,9 +207,8 @@ def run_phase2_cycle(
         else:
             novelty_unknown_count += 1
 
-    with attempts_path.open("w", encoding="utf-8"):
-        pass
     if not runtime_status["runtime_ready"]:
+        attempts_path.write_text("", encoding="utf-8")
         if runtime_status["lean_available"] and not runtime_status["sandbox_available"]:
             skipped_reason = (
                 "Sandbox runtime is required for Lean verification but was not found. "

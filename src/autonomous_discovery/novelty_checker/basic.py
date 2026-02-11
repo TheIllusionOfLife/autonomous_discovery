@@ -37,4 +37,5 @@ class BasicNoveltyChecker:
         return NoveltyDecision(is_novel=True, reason="novel")
 
     def _normalize(self, statement: str) -> str:
-        return re.sub(r"\s+", " ", statement).strip()
+        without_line_comments = re.sub(r"--.*$", "", statement, flags=re.MULTILINE)
+        return re.sub(r"\s+", " ", without_line_comments).strip()

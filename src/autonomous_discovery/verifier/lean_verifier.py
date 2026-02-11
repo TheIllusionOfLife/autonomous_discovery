@@ -69,7 +69,7 @@ class LeanVerifier:
                 stderr="Unsafe Lean directives are not permitted in verifier inputs.",
                 timed_out=False,
             )
-        if not self._is_supported_input_shape(statement, proof_script):
+        if self.require_sandbox and not self._is_supported_input_shape(statement, proof_script):
             return VerificationResult(
                 statement=statement,
                 proof_script=proof_script,
@@ -126,7 +126,7 @@ class LeanVerifier:
         return redacted[: self.max_stderr_chars] + "...<truncated>"
 
     def _sandbox_available(self) -> bool:
-        if not self.sandbox_command_prefix:
+        if not self.sandbox_command_prefix or not self.sandbox_command_prefix[0]:
             return False
         return shutil.which(self.sandbox_command_prefix[0]) is not None
 
