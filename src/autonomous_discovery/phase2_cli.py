@@ -25,6 +25,11 @@ def build_parser() -> argparse.ArgumentParser:
         help="Allow unsandboxed verification for trusted local runs.",
     )
     parser.add_argument(
+        "--i-understand-unsafe",
+        action="store_true",
+        help="Required with --trusted-local-run to acknowledge unsandboxed execution risk.",
+    )
+    parser.add_argument(
         "--sandbox-command-prefix",
         type=str,
         default="nsjail",
@@ -35,6 +40,15 @@ def build_parser() -> argparse.ArgumentParser:
 
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
+    if args.trusted_local_run and not args.i_understand_unsafe:
+        print(
+            (
+                "--trusted-local-run requires --i-understand-unsafe. "
+                "Use sandboxed mode unless inputs are fully trusted."
+            ),
+            file=sys.stderr,
+        )
+        return 1
     try:
         summary = run_phase2_cycle(
             premises_path=args.premises_path,

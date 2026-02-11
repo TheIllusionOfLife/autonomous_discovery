@@ -21,9 +21,9 @@ class BasicCounterexampleFilter:
     """Cheap string-based guardrails before expensive verification."""
 
     def evaluate(self, conjecture: ConjectureCandidate) -> FilterDecision:
-        normalized = re.sub(r"\s+", "", conjecture.lean_statement.lower())
-        if ":false" in normalized:
+        statement = conjecture.lean_statement.lower()
+        if re.search(r":\s*false\b", statement):
             return FilterDecision(accepted=False, reason="contains_false_literal")
-        if "1=0" in normalized or "0=1" in normalized:
+        if re.search(r"\b1\s*=\s*0\b|\b0\s*=\s*1\b", statement):
             return FilterDecision(accepted=False, reason="contains_obvious_contradiction")
         return FilterDecision(accepted=True, reason="passed_basic_checks")

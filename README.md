@@ -57,6 +57,20 @@ Run one deterministic discovery cycle (gap -> conjecture -> verification):
 uv run python -m autonomous_discovery.phase2_cli --top-k 20 --proof-retry-budget 3
 ```
 
+By default verification requires a sandbox runtime (`nsjail`). To run without a
+sandbox on a trusted local machine, explicitly acknowledge the risk:
+
+```bash
+uv run python -m autonomous_discovery.phase2_cli \
+  --trusted-local-run \
+  --i-understand-unsafe
+```
+
 Artifacts are written under `data/processed/`:
 - `phase2_attempts.jsonl`
 - `phase2_cycle_metrics.json`
+
+`phase2_cycle_metrics.json` includes runtime and gating observability fields:
+- `verification_mode`, `lean_available`, `sandbox_available`, `runtime_ready`, `skipped_reason`
+- `filtered_out_count`, `filter_pass_count`, `filter_reject_reasons`
+- `duplicate_count`, `novel_count`, `novelty_unknown_count`

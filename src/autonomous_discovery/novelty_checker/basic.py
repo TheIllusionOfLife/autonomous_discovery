@@ -1,4 +1,8 @@
-"""Deterministic novelty checker baseline."""
+"""Deterministic novelty checker baseline.
+
+Future iterations should replace this with theorem-aware normalization and
+equivalence checks (defEq / implication-based checks) from project spec.
+"""
 
 from __future__ import annotations
 
