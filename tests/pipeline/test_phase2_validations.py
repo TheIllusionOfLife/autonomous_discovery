@@ -81,14 +81,33 @@ def test_phase2_builds_default_verifier_with_project_context(
 ) -> None:
     premises_path, decl_types_path = _write_minimal_data(tmp_path)
     output_dir = tmp_path / "out"
-    captured: dict[str, str | None] = {"project_dir": None}
+    captured: dict[str, object] = {
+        "project_dir": None,
+        "require_sandbox": None,
+        "sandbox_command_prefix": None,
+    }
 
     class FakeVerifier:
-        def __init__(self, runner: LeanRunner) -> None:
+        def __init__(
+            self,
+            *,
+            runner: LeanRunner,
+            require_sandbox: bool,
+            sandbox_command_prefix: tuple[str, ...],
+        ) -> None:
             captured["project_dir"] = runner.project_dir
+            captured["require_sandbox"] = require_sandbox
+            captured["sandbox_command_prefix"] = sandbox_command_prefix
 
         def is_available(self) -> bool:
             return False
+
+        def runtime_status(self) -> dict[str, bool]:
+            return {
+                "lean_available": False,
+                "sandbox_available": False,
+                "runtime_ready": False,
+            }
 
         def verify(self, statement: str, proof_script: str) -> VerificationResult:
             return VerificationResult(
@@ -105,8 +124,11 @@ def test_phase2_builds_default_verifier_with_project_context(
         decl_types_path=decl_types_path,
         output_dir=output_dir,
         top_k=1,
+        sandbox_command_prefix=("sandbox", "--mode", "tight"),
     )
     assert captured["project_dir"] is not None
+    assert captured["require_sandbox"] is True
+    assert captured["sandbox_command_prefix"] == ("sandbox", "--mode", "tight")
 
 
 def test_graph_cache_is_bounded(tmp_path: Path) -> None:
@@ -261,3 +283,33 @@ def test_phase2_applies_filter_and_novelty_metrics(tmp_path: Path) -> None:
     assert summary["filter_pass_count"] == 1
     assert summary["duplicate_count"] == 1
     assert summary["novel_count"] == 0
+
+
+def test_phase2_uses_runtime_status_fallback_when_verifier_lacks_method(tmp_path: Path) -> None:
+    premises_path, decl_types_path = _write_minimal_data(tmp_path)
+
+    class LegacyVerifier:
+        def is_available(self) -> bool:
+            return True
+
+        def verify(self, statement: str, proof_script: str) -> VerificationResult:
+            _ = (statement, proof_script)
+            return VerificationResult(
+                statement="theorem T : True",
+                proof_script="by\n  trivial",
+                success=False,
+                stderr="verification failed",
+                timed_out=False,
+            )
+
+    summary = run_phase2_cycle(
+        premises_path=premises_path,
+        decl_types_path=decl_types_path,
+        output_dir=tmp_path / "out",
+        top_k=1,
+        trusted_local_run=True,
+        verifier=LegacyVerifier(),
+    )
+
+    assert summary["lean_available"] is True
+    assert summary["runtime_ready"] is True

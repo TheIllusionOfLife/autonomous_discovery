@@ -53,3 +53,11 @@ def test_counterexample_filter_rejects_equation_without_spaces() -> None:
     decision = f.evaluate(_candidate("theorem bad : 1=0"))
 
     assert decision == FilterDecision(accepted=False, reason="contains_obvious_contradiction")
+
+
+def test_counterexample_filter_does_not_false_positive_falsehood() -> None:
+    f = BasicCounterexampleFilter()
+
+    decision = f.evaluate(_candidate("theorem ok : Falsehood"))
+
+    assert decision == FilterDecision(accepted=True, reason="passed_basic_checks")
