@@ -1,34 +1,75 @@
-# Repository Guidelines
+# AGENTS.md
 
-## Project Structure & Module Organization
-- Core Python package lives in `src/autonomous_discovery/` with domain modules such as `gap_detector/`, `pipeline/`, `proof_engine/`, and `verifier/`.
-- Tests mirror source structure under `tests/` (for example, `tests/gap_detector/` for `src/autonomous_discovery/gap_detector/`).
-- Integration tests are in `tests/integration/` and are marked `integration`.
-- Runtime artifacts and generated outputs are written to `data/processed/`.
-- Lean-related code and tooling are under `lean/`.
+Repository-specific instructions for coding agents working in `autonomous_discovery`.
 
-## Build, Test, and Development Commands
-- `uv sync`: install and lock project dependencies.
-- `uv run ruff check src tests`: run lint checks.
-- `uv run ruff format --check src tests`: verify formatting.
-- `uv run pytest -q`: run default test suite (`-m 'not integration'`).
-- `uv run pytest -m integration -q`: run integration tests.
-- `uv run python -m autonomous_discovery.phase2_cli --top-k 20 --proof-retry-budget 3`: run one deterministic Phase 2 cycle.
+## Scope and Intent
 
-## Coding Style & Naming Conventions
-- Python 3.12+, 4-space indentation, max line length 99 (Ruff enforced).
-- Follow Ruff rule sets configured in `pyproject.toml` (`E,F,I,N,W,UP`).
-- Use `snake_case` for functions/modules, `PascalCase` for classes, and descriptive test names like `test_runner_rejects_unsafe_path`.
-- Keep modules focused; prefer small, composable functions.
+- Keep changes small, deterministic, and test-backed.
+- Prefer improving existing modules over introducing new abstractions.
+- Do not introduce new runtime dependencies unless explicitly requested.
 
-## Testing Guidelines
-- Framework: `pytest` with markers configured in `pyproject.toml`.
-- Place unit tests next to corresponding domain area; keep integration coverage in `tests/integration/`.
-- Name tests as `test_<behavior>.py` and assert observable behavior, not implementation details.
-- Run lint + format + tests before opening a PR.
+## Commands Agents Should Know
 
-## Commit & Pull Request Guidelines
-- Follow conventional-style commit prefixes seen in history: `feat:`, `fix:`, `test:`.
-- Keep commits scoped to one logical change and include tests for behavior changes.
-- Open PRs from a feature branch (never push directly to `main`).
-- PRs should include: concise summary, rationale, test evidence (commands run), and linked issue/context when available.
+Use these exact commands (all from repository root):
+
+```bash
+uv sync --dev
+git submodule update --init --recursive
+uv run ruff check src tests
+uv run ruff format --check src tests
+uv run pytest -q
+uv run pytest -m integration -q
+uv run python -m autonomous_discovery.gap_detector.cli --top-k 20
+uv run python -m autonomous_discovery.gap_detector.pilot_cli --top-k 20
+uv run python -m autonomous_discovery.phase2_cli --top-k 20 --proof-retry-budget 3
+```
+
+Phase 2 trusted local mode is intentionally explicit:
+
+```bash
+uv run python -m autonomous_discovery.phase2_cli --trusted-local-run --i-understand-unsafe
+```
+
+## Code Style and Implementation Rules
+
+- Python 3.12+, 4-space indent, max line length 99.
+- Lint config is Ruff (`E,F,I,N,W,UP`) in `pyproject.toml`.
+- Use type hints on public functions and dataclasses.
+- Keep domain modules cohesive (`gap_detector`, `pipeline`, `verifier`, etc.).
+- Avoid hidden side effects at import time.
+
+## Testing and Validation
+
+- Unit tests live under `tests/` mirroring source modules.
+- Integration tests are marked with `@pytest.mark.integration` and run separately.
+- For behavior changes, add or update tests in the same PR/branch.
+- Minimum local validation before proposing merge:
+  - `uv run ruff check src tests`
+  - `uv run ruff format --check src tests`
+  - `uv run pytest -q`
+
+## Branches, Commits, and PR Etiquette
+
+- Never push directly to `main`.
+- Branch naming: `feat/<short-topic>`, `fix/<short-topic>`, `chore/<short-topic>`, `test/<short-topic>`.
+- Commit prefixes: `feat:`, `fix:`, `docs:`, `test:`, `chore:`.
+- Keep each commit logically scoped and include test evidence in PR description.
+
+## Architecture-Specific Decisions
+
+- `run_phase2_cycle` in `src/autonomous_discovery/pipeline/phase2.py` is the orchestration entrypoint.
+- Lean verification is sandbox-first by default; trusted local mode exists for controlled environments.
+- Data artifacts are written to `data/processed/` and are not committed.
+- `ProjectConfig` in `src/autonomous_discovery/config.py` is the canonical location for project paths and thresholds.
+
+## Environment and Tooling Quirks
+
+- Lean verification expects `lean` and `lake` on `PATH` for real verification.
+- Sandboxed verifier mode defaults to `nsjail` command prefix; missing sandbox marks runtime as not ready.
+- Use `uv` for dependency/runtime execution; do not install packages globally.
+
+## Common Gotchas
+
+- Phase 2 with `--trusted-local-run` requires `--i-understand-unsafe`; missing ack exits with code 1.
+- CI validates lint, format, unit tests, and integration tests; run the same commands locally before opening a PR.
+- Large planning/spec docs are archived in `docs/archive/` and should not be treated as current implementation docs.
