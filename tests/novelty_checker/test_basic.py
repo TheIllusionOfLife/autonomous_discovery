@@ -123,6 +123,31 @@ def test_basic_novelty_checker_uses_higher_confidence_semantic_match_in_scope() 
     )
 
 
+def test_basic_novelty_checker_continues_after_semantic_comparator_exception() -> None:
+    class FlakyComparator:
+        def compare(self, left: str, right: str) -> SemanticComparison:
+            if left == "theorem second : B":
+                return SemanticComparison(equivalent=False, confidence=0.0, reason="no_match")
+            if right == "theorem second : B":
+                raise RuntimeError("transient comparator error")
+            if right == "theorem first : A":
+                return SemanticComparison(equivalent=True, confidence=0.91, reason="strong_match")
+            return SemanticComparison(equivalent=False, confidence=0.0, reason="no_match")
+
+    checker = BasicNoveltyChecker(semantic_comparator=FlakyComparator())
+    assert checker.is_novel("theorem first : A") == NoveltyDecision(is_novel=True, reason="novel")
+    assert checker.is_novel("theorem second : B") == NoveltyDecision(is_novel=True, reason="novel")
+
+    decision = checker.is_novel("theorem third : C")
+
+    assert decision == NoveltyDecision(
+        is_novel=False,
+        reason="semantic_duplicate",
+        layer="semantic",
+        confidence=0.91,
+    )
+
+
 def test_basic_novelty_checker_accepts_new_statement() -> None:
     checker = BasicNoveltyChecker(existing_statements={"theorem x : True"})
 

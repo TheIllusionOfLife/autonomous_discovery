@@ -11,9 +11,12 @@ Optional semantic comparison can be plugged in as a final duplicate check.
 
 from __future__ import annotations
 
+import logging
 import re
 from dataclasses import dataclass, field
 from typing import Protocol
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True, slots=True)
@@ -105,6 +108,7 @@ class BasicNoveltyChecker:
             try:
                 comparison = self.semantic_comparator.compare(statement, previous)
             except Exception:
+                logger.debug("Semantic comparator failed for novelty check", exc_info=True)
                 continue
             if not comparison.equivalent:
                 continue
