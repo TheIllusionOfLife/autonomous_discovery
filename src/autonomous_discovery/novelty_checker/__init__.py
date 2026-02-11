@@ -1,1 +1,5 @@
-"""Novelty checker: 4-layer dedup (normalize, defEq, bi-implication, LLM) (Week 8-9)."""
+"""Novelty checker utilities."""
+
+from autonomous_discovery.novelty_checker.basic import BasicNoveltyChecker, NoveltyDecision
+
+__all__ = ["BasicNoveltyChecker", "NoveltyDecision"]

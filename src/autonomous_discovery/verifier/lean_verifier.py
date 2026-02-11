@@ -41,6 +41,16 @@ class LeanVerifier:
     def is_available(self) -> bool:
         return self.runner.check_lean_available()
 
+    def runtime_status(self) -> dict[str, bool]:
+        lean_available = self.is_available()
+        sandbox_available = self._sandbox_available()
+        runtime_ready = lean_available and (sandbox_available or not self.require_sandbox)
+        return {
+            "lean_available": lean_available,
+            "sandbox_available": sandbox_available,
+            "runtime_ready": runtime_ready,
+        }
+
     def verify(self, statement: str, proof_script: str) -> VerificationResult:
         if not self.is_available():
             return VerificationResult(

@@ -12,10 +12,15 @@ from autonomous_discovery.config import ProjectConfig
 from autonomous_discovery.conjecture_generator.models import ConjectureCandidate
 from autonomous_discovery.conjecture_generator.protocol import ConjectureGenerator
 from autonomous_discovery.conjecture_generator.template import TemplateConjectureGenerator
+from autonomous_discovery.counterexample_filter.basic import (
+    BasicCounterexampleFilter,
+    FilterDecision,
+)
 from autonomous_discovery.gap_detector.analogical import AnalogicalGapDetector, GapDetectorConfig
 from autonomous_discovery.knowledge_base.graph import MathlibGraph
 from autonomous_discovery.knowledge_base.parser import parse_declaration_types, parse_premises
 from autonomous_discovery.lean_bridge.runner import LeanRunner
+from autonomous_discovery.novelty_checker.basic import BasicNoveltyChecker, NoveltyDecision
 from autonomous_discovery.proof_engine.models import ProofAttempt
 from autonomous_discovery.proof_engine.simple_engine import SimpleProofEngine
 from autonomous_discovery.verifier.lean_verifier import LeanVerifier
@@ -39,6 +44,20 @@ class Verifier(Protocol):
     def verify(self, statement: str, proof_script: str) -> VerificationResult: ...
 
     def is_available(self) -> bool: ...
+
+    def runtime_status(self) -> dict[str, bool]: ...
+
+
+class CounterexampleFilter(Protocol):
+    """Protocol for fast conjecture rejection filters."""
+
+    def evaluate(self, conjecture: ConjectureCandidate) -> FilterDecision: ...
+
+
+class NoveltyChecker(Protocol):
+    """Protocol for novelty/duplicate detection."""
+
+    def is_novel(self, statement: str) -> NoveltyDecision: ...
 
 
 def _file_signature(path: Path) -> tuple[str, int, int]:
@@ -76,6 +95,38 @@ def _failure_kind(result: VerificationResult) -> str:
     return "verification_failed"
 
 
+def _runtime_status(verifier: Verifier) -> dict[str, bool]:
+    if hasattr(verifier, "runtime_status"):
+        status = verifier.runtime_status()
+        return {
+            "lean_available": bool(status.get("lean_available", False)),
+            "sandbox_available": bool(status.get("sandbox_available", False)),
+            "runtime_ready": bool(status.get("runtime_ready", False)),
+        }
+
+    lean_available = verifier.is_available()
+    return {
+        "lean_available": lean_available,
+        "sandbox_available": True,
+        "runtime_ready": lean_available,
+    }
+
+
+def _build_default_verifier(
+    config: ProjectConfig, *, trusted_local_run: bool, sandbox_command_prefix: tuple[str, ...]
+) -> Verifier:
+    runner = LeanRunner(project_dir=config.lean_project_dir)
+    try:
+        return LeanVerifier(
+            runner=runner,
+            require_sandbox=not trusted_local_run,
+            sandbox_command_prefix=sandbox_command_prefix,
+        )
+    except TypeError:
+        # Backward-compatible fallback for test doubles with legacy constructor signatures.
+        return LeanVerifier(runner=runner)
+
+
 def run_phase2_cycle(
     *,
     premises_path: Path,
@@ -83,7 +134,11 @@ def run_phase2_cycle(
     output_dir: Path,
     top_k: int = 20,
     proof_retry_budget: int = 3,
+    trusted_local_run: bool = False,
+    sandbox_command_prefix: tuple[str, ...] = ("nsjail",),
     generator: ConjectureGenerator | None = None,
+    conjecture_filter: CounterexampleFilter | None = None,
+    novelty_checker: NoveltyChecker | None = None,
     proof_engine: ProofEngine | None = None,
     verifier: Verifier | None = None,
 ) -> dict[str, Any]:
@@ -108,61 +163,119 @@ def run_phase2_cycle(
     effective_generator = generator or TemplateConjectureGenerator()
     conjectures = effective_generator.generate(gaps, max_candidates=top_k)
 
+    effective_filter = conjecture_filter or BasicCounterexampleFilter()
+    effective_novelty_checker = novelty_checker or BasicNoveltyChecker()
     effective_proof_engine = proof_engine or SimpleProofEngine()
-    effective_verifier = verifier or LeanVerifier(
-        runner=LeanRunner(project_dir=config.lean_project_dir)
+    effective_verifier = verifier or _build_default_verifier(
+        config,
+        trusted_local_run=trusted_local_run,
+        sandbox_command_prefix=sandbox_command_prefix,
     )
-    verifier_available = effective_verifier.is_available()
+    runtime_status = _runtime_status(effective_verifier)
+    verification_mode = "trusted_local" if trusted_local_run else "sandboxed"
 
     output_dir.mkdir(parents=True, exist_ok=True)
     attempts_path = output_dir / "phase2_attempts.jsonl"
     metrics_path = output_dir / "phase2_cycle_metrics.json"
 
+    filtered_out_count = 0
+    filter_pass_count = 0
+    filter_reject_reasons: dict[str, int] = {}
+    duplicate_count = 0
+    novel_count = 0
+    novelty_unknown_count = 0
     success_count = 0
     failure_counts: dict[str, int] = {}
-    with attempts_path.open("w", encoding="utf-8") as f:
-        for conjecture in conjectures:
-            attempts = effective_proof_engine.build_attempts(
-                conjecture,
-                max_attempts=proof_retry_budget,
+    skipped_reason: str | None = None
+    verifiable_conjectures: list[ConjectureCandidate] = []
+    for conjecture in conjectures:
+        filter_decision = effective_filter.evaluate(conjecture)
+        if not filter_decision.accepted:
+            filtered_out_count += 1
+            filter_reject_reasons[filter_decision.reason] = (
+                filter_reject_reasons.get(filter_decision.reason, 0) + 1
             )
-            conjecture_succeeded = False
-            for attempt in attempts:
-                attempt_started_ns = time.perf_counter_ns()
-                verification = effective_verifier.verify(attempt.statement, attempt.proof_script)
-                duration_ms = (time.perf_counter_ns() - attempt_started_ns) / 1_000_000
-                failure_kind = _failure_kind(verification)
-                if failure_kind != "none":
-                    failure_counts[failure_kind] = failure_counts.get(failure_kind, 0) + 1
-                row = {
-                    "gap_missing_decl": conjecture.gap_missing_decl,
-                    "statement": attempt.statement,
-                    "proof_script": attempt.proof_script,
-                    "engine": attempt.engine,
-                    "attempt_index": attempt.attempt_index,
-                    "success": verification.success,
-                    "stderr": verification.stderr,
-                    "timed_out": verification.timed_out,
-                    "duration_ms": round(duration_ms, 3),
-                    "failure_kind": failure_kind,
-                }
-                f.write(json.dumps(row, sort_keys=True) + "\n")
-                if verification.success:
-                    conjecture_succeeded = True
-                    break
-            if conjecture_succeeded:
-                success_count += 1
+            continue
+        filter_pass_count += 1
 
-    success_rate = success_count / len(conjectures) if conjectures else 0.0
+        novelty_decision = effective_novelty_checker.is_novel(conjecture.lean_statement)
+        if novelty_decision.is_novel:
+            novel_count += 1
+            verifiable_conjectures.append(conjecture)
+        elif novelty_decision.reason:
+            duplicate_count += 1
+        else:
+            novelty_unknown_count += 1
+
+    with attempts_path.open("w", encoding="utf-8"):
+        pass
+    if not runtime_status["runtime_ready"]:
+        if runtime_status["lean_available"] and not runtime_status["sandbox_available"]:
+            skipped_reason = (
+                "Sandbox runtime is required for Lean verification but was not found. "
+                "Configure sandbox_command_prefix or use trusted local mode."
+            )
+        elif not runtime_status["lean_available"]:
+            skipped_reason = "Lean executable is not available on PATH."
+        else:
+            skipped_reason = "Verifier runtime is not ready."
+    else:
+        with attempts_path.open("w", encoding="utf-8") as f:
+            for conjecture in verifiable_conjectures:
+                attempts = effective_proof_engine.build_attempts(
+                    conjecture,
+                    max_attempts=proof_retry_budget,
+                )
+                conjecture_succeeded = False
+                for attempt in attempts:
+                    attempt_started_ns = time.perf_counter_ns()
+                    verification = effective_verifier.verify(
+                        attempt.statement, attempt.proof_script
+                    )
+                    duration_ms = (time.perf_counter_ns() - attempt_started_ns) / 1_000_000
+                    failure_kind = _failure_kind(verification)
+                    if failure_kind != "none":
+                        failure_counts[failure_kind] = failure_counts.get(failure_kind, 0) + 1
+                    row = {
+                        "gap_missing_decl": conjecture.gap_missing_decl,
+                        "statement": attempt.statement,
+                        "proof_script": attempt.proof_script,
+                        "engine": attempt.engine,
+                        "attempt_index": attempt.attempt_index,
+                        "success": verification.success,
+                        "stderr": verification.stderr,
+                        "timed_out": verification.timed_out,
+                        "duration_ms": round(duration_ms, 3),
+                        "failure_kind": failure_kind,
+                    }
+                    f.write(json.dumps(row, sort_keys=True) + "\n")
+                    if verification.success:
+                        conjecture_succeeded = True
+                        break
+                if conjecture_succeeded:
+                    success_count += 1
+
+    success_rate = success_count / len(verifiable_conjectures) if verifiable_conjectures else 0.0
     cycle_duration_ms = (time.perf_counter_ns() - cycle_started_ns) / 1_000_000
     metrics: dict[str, Any] = {
         "gap_count": len(gaps),
         "conjecture_count": len(conjectures),
+        "filtered_out_count": filtered_out_count,
+        "filter_pass_count": filter_pass_count,
+        "filter_reject_reasons": dict(sorted(filter_reject_reasons.items())),
+        "duplicate_count": duplicate_count,
+        "novel_count": novel_count,
+        "novelty_unknown_count": novelty_unknown_count,
         "verification_success_count": success_count,
         "success_rate": success_rate,
         "cycle_duration_ms": round(cycle_duration_ms, 3),
         "graph_cache_hit": graph_cache_hit,
-        "verifier_available": verifier_available,
+        "verifier_available": runtime_status["lean_available"],
+        "verification_mode": verification_mode,
+        "lean_available": runtime_status["lean_available"],
+        "sandbox_available": runtime_status["sandbox_available"],
+        "runtime_ready": runtime_status["runtime_ready"],
+        "skipped_reason": skipped_reason,
         "failure_counts": dict(sorted(failure_counts.items())),
         "top_k": top_k,
         "proof_retry_budget": proof_retry_budget,
