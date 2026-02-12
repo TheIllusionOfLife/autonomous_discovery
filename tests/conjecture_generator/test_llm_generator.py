@@ -5,7 +5,6 @@ from __future__ import annotations
 from unittest.mock import MagicMock, patch
 
 import httpx
-import pytest
 
 from autonomous_discovery.config import LLMConfig
 from autonomous_discovery.conjecture_generator.llm_generator import OllamaConjectureGenerator
@@ -46,11 +45,7 @@ VALID_THEOREM = (
     "  ring"
 )
 
-VALID_LEMMA = (
-    "lemma Ring_one_mul (R : Type*) [Ring R] (a : R) :\n"
-    "  1 * a = a := by\n"
-    "  simp"
-)
+VALID_LEMMA = "lemma Ring_one_mul (R : Type*) [Ring R] (a : R) :\n  1 * a = a := by\n  simp"
 
 LLM_RESPONSE_WITH_CODE_BLOCK = (
     "Here is a conjecture for the missing declaration:\n\n"
