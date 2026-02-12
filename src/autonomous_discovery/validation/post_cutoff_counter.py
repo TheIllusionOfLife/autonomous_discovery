@@ -45,7 +45,7 @@ def filter_algebra_theorems(
 def count_post_cutoff_from_git(
     mathlib_repo: Path,
     cutoff_date: date,
-) -> int:
+) -> int | None:
     """Count new theorem lines added after cutoff_date via git diff.
 
     This is an approximate count — it counts added ``theorem``/``lemma``
@@ -64,7 +64,7 @@ def count_post_cutoff_from_git(
     cutoff_hash = result.stdout.strip()
     if not cutoff_hash:
         logger.warning("No Mathlib commit found before %s", cutoff_date)
-        return 0
+        return None
 
     logger.info("Cutoff commit: %s", cutoff_hash)
 
@@ -111,6 +111,10 @@ def main() -> int:
         return 1
 
     post_cutoff = count_post_cutoff_from_git(mathlib_repo, config.cutoff_date)
+    if post_cutoff is None:
+        logger.error("Cannot determine post-cutoff count — no baseline commit")
+        return 1
+
     logger.info(
         "Approximate post-cutoff (%s) algebra theorem additions: %d",
         config.cutoff_date,

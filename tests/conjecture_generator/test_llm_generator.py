@@ -206,7 +206,7 @@ class TestGenerate:
 
         assert candidate.metadata["source_decl"] == "Group.mul_assoc"
         assert candidate.metadata["target_family"] == "Ring."
-        assert "0.85" in candidate.metadata["score"]
+        assert candidate.metadata["score"] == "0.850000"
 
     @patch("autonomous_discovery.conjecture_generator.llm_generator.httpx")
     def test_sorts_gaps_by_score_descending(self, mock_httpx: MagicMock) -> None:
