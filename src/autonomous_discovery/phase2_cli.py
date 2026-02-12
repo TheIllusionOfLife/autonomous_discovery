@@ -8,6 +8,10 @@ import sys
 from pathlib import Path
 
 from autonomous_discovery.config import ProjectConfig
+from autonomous_discovery.conjecture_generator import (
+    OllamaConjectureGenerator,
+    TemplateConjectureGenerator,
+)
 from autonomous_discovery.pipeline.phase2 import run_phase2_cycle
 
 
@@ -35,6 +39,12 @@ def build_parser() -> argparse.ArgumentParser:
         default="nsjail",
         help="Shell-like command prefix for sandboxing Lean verification.",
     )
+    parser.add_argument(
+        "--generator",
+        choices=("template", "ollama"),
+        default="template",
+        help="Conjecture generator backend (default: template).",
+    )
     return parser
 
 
@@ -49,6 +59,11 @@ def main(argv: list[str] | None = None) -> int:
             file=sys.stderr,
         )
         return 1
+    generator = (
+        OllamaConjectureGenerator()
+        if args.generator == "ollama"
+        else TemplateConjectureGenerator()
+    )
     try:
         summary = run_phase2_cycle(
             premises_path=args.premises_path,
@@ -58,6 +73,7 @@ def main(argv: list[str] | None = None) -> int:
             proof_retry_budget=args.proof_retry_budget,
             trusted_local_run=args.trusted_local_run,
             sandbox_command_prefix=tuple(shlex.split(args.sandbox_command_prefix)),
+            generator=generator,
         )
     except FileNotFoundError as exc:
         print(f"Input file not found: {exc.filename}", file=sys.stderr)
