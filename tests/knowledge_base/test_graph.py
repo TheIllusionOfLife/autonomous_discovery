@@ -131,3 +131,20 @@ class TestGraphStatistics:
         assert len(pr) > 0
         # All values should be positive floats
         assert all(v > 0 for v in pr.values())
+
+    def test_type_signature_of_returns_signature(self, graph: MathlibGraph) -> None:
+        sig = graph.type_signature_of("Nat.add_comm")
+        assert sig is not None
+        assert "∀ (n m : Nat)" in sig
+
+    def test_type_signature_of_missing_node(self, graph: MathlibGraph) -> None:
+        assert graph.type_signature_of("NonExistent.Decl") is None
+
+    def test_type_signature_of_node_without_signature(self) -> None:
+        """Dependency-only nodes may lack a type_signature attribute."""
+        import networkx as nx
+
+        g = nx.DiGraph()
+        g.add_node("bare_node")  # no type_signature attr
+        graph = MathlibGraph(g)
+        assert graph.type_signature_of("bare_node") is None
