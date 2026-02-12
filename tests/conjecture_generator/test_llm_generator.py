@@ -85,7 +85,7 @@ class TestGenerate:
         gen = OllamaConjectureGenerator()
         candidates = gen.generate(gaps, max_candidates=2)
 
-        assert len(candidates) <= 2
+        assert len(candidates) == 2
 
     @patch("autonomous_discovery.conjecture_generator.llm_generator.httpx")
     def test_empty_gaps_returns_empty(self, mock_httpx: MagicMock) -> None:
@@ -102,13 +102,15 @@ class TestGenerate:
         mock_httpx.post.assert_not_called()
 
     @patch("autonomous_discovery.conjecture_generator.llm_generator.httpx")
-    def test_handles_connection_error_gracefully(self, mock_httpx: MagicMock) -> None:
-        mock_httpx.HTTPError = httpx.HTTPError
+    def test_handles_connection_error_with_retries(self, mock_httpx: MagicMock) -> None:
         mock_httpx.post.side_effect = httpx.ConnectError("Connection refused")
 
-        gen = OllamaConjectureGenerator()
+        config = LLMConfig(parse_retries=2)
+        gen = OllamaConjectureGenerator(config=config)
         candidates = gen.generate([_make_gap()], max_candidates=1)
         assert candidates == []
+        # 1 initial + 2 retries = 3 attempts
+        assert mock_httpx.post.call_count == 3
 
     @patch("autonomous_discovery.conjecture_generator.llm_generator.httpx")
     def test_retries_on_parse_failure_then_succeeds(self, mock_httpx: MagicMock) -> None:
@@ -224,8 +226,7 @@ class TestGenerate:
         assert candidates[0].gap_missing_decl == "Ring.high"
 
     @patch("autonomous_discovery.conjecture_generator.llm_generator.httpx")
-    def test_handles_http_status_error(self, mock_httpx: MagicMock) -> None:
-        mock_httpx.HTTPError = httpx.HTTPError
+    def test_handles_http_status_error_with_retries(self, mock_httpx: MagicMock) -> None:
         resp = MagicMock(spec=httpx.Response)
         resp.status_code = 500
         resp.raise_for_status.side_effect = httpx.HTTPStatusError(
@@ -233,9 +234,12 @@ class TestGenerate:
         )
         mock_httpx.post.return_value = resp
 
-        gen = OllamaConjectureGenerator()
+        config = LLMConfig(parse_retries=1)
+        gen = OllamaConjectureGenerator(config=config)
         candidates = gen.generate([_make_gap()], max_candidates=1)
         assert candidates == []
+        # 1 initial + 1 retry = 2 attempts
+        assert mock_httpx.post.call_count == 2
 
 
 # ---------------------------------------------------------------------------

@@ -64,7 +64,7 @@ class OllamaConjectureGenerator:
         for attempt_idx in range(attempts):
             try:
                 content = self._call_ollama(messages)
-            except (httpx.HTTPError, Exception) as exc:
+            except Exception as exc:
                 logger.warning(
                     "Ollama request failed for %s (attempt %d/%d): %s",
                     gap.missing_decl,
@@ -72,7 +72,7 @@ class OllamaConjectureGenerator:
                     attempts,
                     exc,
                 )
-                return None
+                continue
 
             statements = self._parse_lean_statements(content)
             if statements:
@@ -155,7 +155,10 @@ class OllamaConjectureGenerator:
         )
         response.raise_for_status()
         data = response.json()
-        return data["message"]["content"]
+        try:
+            return data["message"]["content"]
+        except (KeyError, TypeError) as exc:
+            raise ValueError(f"Unexpected Ollama response format: {exc}") from exc
 
     def _parse_lean_statements(self, raw: str) -> list[str]:
         """Extract theorem/lemma statement declarations from LLM output."""
