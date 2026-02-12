@@ -10,6 +10,18 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 
 
 @dataclass(frozen=True)
+class LLMConfig:
+    """Configuration for LLM inference via Ollama."""
+
+    ollama_base_url: str = "http://localhost:11434"
+    model_name: str = "gpt-oss-20b"
+    temperature: float = 0.7
+    max_tokens: int = 2048
+    parse_retries: int = 2
+    timeout: float = 120.0
+
+
+@dataclass(frozen=True)
 class ProjectConfig:
     """Immutable project-wide configuration."""
 
@@ -61,6 +73,9 @@ class ProjectConfig:
     # Lean bridge
     lean_timeout: int = 300  # seconds
     proof_local_retries: int = 3
+
+    # LLM inference (Ollama)
+    llm: LLMConfig = field(default_factory=lambda: LLMConfig())
 
     @property
     def premises_path(self) -> Path:
