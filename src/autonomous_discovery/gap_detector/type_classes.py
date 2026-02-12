@@ -86,10 +86,6 @@ DEFAULT_PROVIDED: dict[str, frozenset[str]] = {
     "Module.": frozenset(
         {
             "Module",
-            "Semiring",
-            "CommSemiring",
-            "Ring",
-            "CommRing",
             "AddCommMonoid",
             "AddCommGroup",
             "AddMonoid",

@@ -240,7 +240,7 @@ class AnalogicalGapDetector:
                 weights[node] = 1.0
             else:
                 # Non-family nodes are shared/universal — weight decreases with ubiquity
-                ratio = nonempty_families / total_families if total_families > 0 else 1.0
+                ratio = nonempty_families / total_families
                 weights[node] = max(0.05, 1.0 - ratio)
         return weights
 
