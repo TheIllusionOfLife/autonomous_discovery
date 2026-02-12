@@ -2,7 +2,6 @@
 
 from autonomous_discovery.gap_detector.type_classes import (
     DEFAULT_PROVIDED,
-    UNIVERSAL_CLASSES,
     FamilyCompatibility,
     extract_type_classes,
 )
@@ -51,33 +50,25 @@ class TestFamilyCompatibility:
 
     def test_ring_satisfies_group_requirements(self) -> None:
         required = frozenset({"Group"})
-        ok, ratio = self.compat.can_satisfy(
-            required_classes=required, target_family="Ring."
-        )
+        ok, ratio = self.compat.can_satisfy(required_classes=required, target_family="Ring.")
         assert ok is True
         assert ratio == 1.0
 
     def test_group_cannot_satisfy_module_requirements(self) -> None:
         required = frozenset({"Module"})
-        ok, ratio = self.compat.can_satisfy(
-            required_classes=required, target_family="Group."
-        )
+        ok, ratio = self.compat.can_satisfy(required_classes=required, target_family="Group.")
         assert ok is False
         assert ratio < 0.5
 
     def test_universal_classes_ignored(self) -> None:
         required = frozenset({"DecidableEq", "Fintype", "Group"})
-        ok, ratio = self.compat.can_satisfy(
-            required_classes=required, target_family="Ring."
-        )
+        ok, ratio = self.compat.can_satisfy(required_classes=required, target_family="Ring.")
         # DecidableEq and Fintype are universal → ignored; Group is satisfied by Ring
         assert ok is True
         assert ratio == 1.0
 
     def test_empty_requirements(self) -> None:
-        ok, ratio = self.compat.can_satisfy(
-            required_classes=frozenset(), target_family="Group."
-        )
+        ok, ratio = self.compat.can_satisfy(required_classes=frozenset(), target_family="Group.")
         assert ok is True
         assert ratio == 1.0
 
@@ -91,17 +82,13 @@ class TestFamilyCompatibility:
     def test_module_to_ring_compatible(self) -> None:
         """Ring is a Module over itself, so Ring should satisfy Module requirements."""
         required = frozenset({"Module"})
-        ok, ratio = self.compat.can_satisfy(
-            required_classes=required, target_family="Ring."
-        )
+        ok, ratio = self.compat.can_satisfy(required_classes=required, target_family="Ring.")
         assert ok is True
         assert ratio == 1.0
 
     def test_only_universal_requirements(self) -> None:
         """When all requirements are universal, everything is compatible."""
         required = frozenset({"DecidableEq", "Fintype"})
-        ok, ratio = self.compat.can_satisfy(
-            required_classes=required, target_family="Group."
-        )
+        ok, ratio = self.compat.can_satisfy(required_classes=required, target_family="Group.")
         assert ok is True
         assert ratio == 1.0

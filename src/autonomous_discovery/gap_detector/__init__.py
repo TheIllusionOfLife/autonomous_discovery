@@ -14,16 +14,26 @@ from autonomous_discovery.gap_detector.evaluation import (
 from autonomous_discovery.gap_detector.pilot import run_phase1_pilot
 from autonomous_discovery.gap_detector.report import read_gap_report, write_gap_report
 from autonomous_discovery.gap_detector.seeds import SeedHint, scan_seed_annotations
+from autonomous_discovery.gap_detector.type_classes import (
+    DEFAULT_PROVIDED,
+    UNIVERSAL_CLASSES,
+    FamilyCompatibility,
+    extract_type_classes,
+)
 
 __all__ = [
     "AnalogicalGapDetector",
+    "DEFAULT_PROVIDED",
+    "FamilyCompatibility",
     "GapCandidate",
     "GapDetectorConfig",
     "SeedHint",
+    "UNIVERSAL_CLASSES",
     "build_topk_label_template_rows",
     "compute_detection_rate",
     "compute_topk_precision",
     "evaluate_metrics_cli_main",
+    "extract_type_classes",
     "read_gap_report",
     "run_phase1_pilot",
     "scan_seed_annotations",

@@ -216,7 +216,7 @@ def test_detect_supports_backward_compatible_top_k_argument() -> None:
 
 
 def _build_typed_graph() -> MathlibGraph:
-    """Build a graph where declarations have realistic type signatures with type class instances."""
+    """Build a graph with realistic type signatures containing type class instances."""
     g = nx.DiGraph()
     # Module declarations — require [Module R M] instance
     g.add_node(
@@ -343,7 +343,13 @@ def test_existing_tests_pass_with_prop_signatures() -> None:
 
 
 def test_weighted_dependencies_score_discrimination() -> None:
-    """Family-specific deps should contribute more weight than universal deps."""
+    """Family-specific deps should contribute more weight than universal deps.
+
+    When a family dep misses (Group.helper → Ring.helper not in graph) but a
+    universal dep hits (Nat.zero → Nat.zero in graph), weighted scoring
+    down-weights the universal hit, producing a different dep_overlap than
+    uniform scoring.
+    """
     g = nx.DiGraph()
     # Source: depends on a family-specific dep and a universal dep
     g.add_node("Group.thm_a", kind="theorem", type_signature="∀ {G : Type} [inst : Group G], ...")
@@ -351,8 +357,7 @@ def test_weighted_dependencies_score_discrimination() -> None:
     g.add_node("Nat.zero", kind="def", type_signature="Nat.zero : Nat")
     g.add_edge("Group.thm_a", "Group.helper")
     g.add_edge("Group.thm_a", "Nat.zero")
-    # Target family has the translated dep
-    g.add_node("Ring.helper", kind="theorem", type_signature="Ring.helper : Prop")
+    # Target family exists but does NOT have Ring.helper (so the family dep misses)
     g.add_node("Ring.other", kind="theorem", type_signature="Ring.other : Prop")
 
     graph = MathlibGraph(g)
@@ -385,7 +390,10 @@ def test_weighted_dependencies_score_discrimination() -> None:
     assert any(g.missing_decl == "Ring.thm_a" for g in gaps_w)
     assert any(g.missing_decl == "Ring.thm_a" for g in gaps_u)
 
-    # Weighted dep_overlap should differ from uniform dep_overlap
+    # Weighted dep_overlap should differ from uniform dep_overlap:
+    # Uniform: total=2, hits=1 (Nat.zero), dep_overlap=0.5
+    # Weighted: family dep (weight=1.0) misses, universal dep (weight≈0.05) hits
+    #           → dep_overlap much lower than 0.5
     w_gap = next(g for g in gaps_w if g.missing_decl == "Ring.thm_a")
     u_gap = next(g for g in gaps_u if g.missing_decl == "Ring.thm_a")
     assert w_gap.signals["dependency_overlap"] != u_gap.signals["dependency_overlap"]

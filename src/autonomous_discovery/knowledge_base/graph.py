@@ -112,5 +112,11 @@ class MathlibGraph:
         """Count transitive dependencies (descendants in the dependency graph)."""
         return len(nx.descendants(self._graph, node))
 
+    def type_signature_of(self, name: str) -> str | None:
+        """Return the type signature of a declaration, or None if not available."""
+        if not self._graph.has_node(name):
+            return None
+        return self._graph.nodes[name].get("type_signature")
+
     def pagerank(self) -> dict[str, float]:
         return nx.pagerank(self._graph)
