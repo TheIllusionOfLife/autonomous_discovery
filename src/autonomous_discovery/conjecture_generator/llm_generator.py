@@ -22,6 +22,11 @@ Do NOT include import statements. Include the proof using `sorry` as placeholder
 """
 
 # Matches theorem/lemma declarations up to `:=` or `where` keyword.
+# Limitation: _DECL_RE terminates at the first `:=` or `where`, which may
+# falsely truncate declarations whose type signatures contain a literal `:=`
+# (e.g., inside a `let` binding or default value in the return type) or an
+# embedded `where` keyword.  A full Lean 4 parser would be needed to handle
+# these edge cases; the regex is sufficient for typical LLM-generated output.
 _DECL_RE = re.compile(
     r"((?:theorem|lemma)\s+\S+.*?)(?:\s*:=|\s+where\b)",
     re.DOTALL,
