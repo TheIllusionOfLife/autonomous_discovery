@@ -98,9 +98,14 @@ class TestGeneratorFlag:
         premises.write_text(_PREMISES)
         decl_types.write_text(_DECL_TYPES)
 
-        with patch("autonomous_discovery.phase2_cli.run_phase2_cycle") as mock_cycle:
+        with (
+            patch("autonomous_discovery.phase2_cli.run_phase2_cycle") as mock_cycle,
+            patch("autonomous_discovery.phase2_cli.OllamaConjectureGenerator") as mock_gen_cls,
+        ):
             mock_cycle.return_value = {"runtime_ready": True, "skipped_reason": None}
-            main(
+            mock_gen_instance = mock_gen_cls.return_value
+
+            code = main(
                 [
                     "--premises-path",
                     str(premises),
@@ -117,7 +122,7 @@ class TestGeneratorFlag:
                 ]
             )
 
+        assert code == 0
+        mock_cycle.assert_called_once()
         _, kwargs = mock_cycle.call_args
-        from autonomous_discovery.conjecture_generator import OllamaConjectureGenerator
-
-        assert isinstance(kwargs["generator"], OllamaConjectureGenerator)
+        assert kwargs["generator"] is mock_gen_instance

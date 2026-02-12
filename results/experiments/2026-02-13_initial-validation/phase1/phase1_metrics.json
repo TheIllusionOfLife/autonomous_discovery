@@ -1,6 +1,6 @@
 {
   "candidate_count": 20,
-  "candidates_path": "/Users/yuyamukai/Research/autonomous_discovery/data/processed/gap_candidates.jsonl",
+  "candidates_path": "data/processed/gap_candidates.jsonl",
   "detection_rate": 0.5,
   "detection_rate_basis": "evaluated_module_proxy_rate",
   "evaluated_module_count": 4,
@@ -10,12 +10,12 @@
     "secondary_topk_precision_ok": false
   },
   "go_no_go_status": "no_go",
-  "labels_path": "/Users/yuyamukai/Research/autonomous_discovery/data/processed/top20_label_template.csv",
-  "metrics_path": "/Users/yuyamukai/Research/autonomous_discovery/data/processed/phase1_metrics.json",
+  "labels_path": "data/processed/top20_label_template.csv",
+  "metrics_path": "data/processed/phase1_metrics.json",
   "modules_with_non_trivial_gaps_count": 2,
   "non_trivial_candidate_rate": 0.45,
   "non_trivial_count": 9,
-  "output_dir": "/Users/yuyamukai/Research/autonomous_discovery/data/processed",
+  "output_dir": "data/processed",
   "top20_precision": 0.45,
   "top_k": 20,
   "topk_precision": 0.45
