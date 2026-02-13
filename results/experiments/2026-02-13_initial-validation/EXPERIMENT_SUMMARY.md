@@ -2,9 +2,11 @@
 
 ## Executive Summary
 
-**Overall verdict: NO_GO**
+**Overall verdict: NO_GO** (conditional — two fixable bottlenecks identified)
 
-The pipeline infrastructure is fully functional end-to-end, but Phase 1 gap quality does not meet the absolute non-trivial count threshold. The post-cutoff theorem supply is abundant (28,991 vs 30 needed), confirming the mathematical domain is viable. The bottleneck is gap candidate quality — too many mechanical/trivial gaps dilute the top-20.
+The pipeline is fully functional end-to-end. The LLM (gpt-oss:20b) generated **mathematically meaningful** Lean 4 conjectures for Jacobson radical theory, module ranks, and substructure membership — but **none verified** due to a weak proof engine. Phase 1 gap quality does not meet the absolute non-trivial count threshold (9/20 vs 20 needed). The post-cutoff theorem supply is abundant (28,991 vs 30 needed), confirming the mathematical domain is viable.
+
+**Two bottlenecks**: (1) Gap filtering lets trivial declarations through, diluting the candidate pool; (2) The proof engine (`exact?`/`aesop`/`simp`) cannot handle non-trivial proofs. Both are engineering problems, not fundamental viability issues.
 
 ## Go/No-Go Gate Results
 
@@ -38,12 +40,36 @@ The absolute count gate (>= 20 non-trivial) requires expanding the candidate poo
 - The 1 novel conjecture verified successfully, confirming Lean bridge works end-to-end
 - Cycle duration: ~204s
 
-## Phase 2: Ollama LLM
+## Phase 2: Ollama LLM (gpt-oss:20b)
 
-- **Ollama service unavailable** (HTTP 404 on localhost:11434)
-- All 20 gap candidates failed after 3 retry attempts each
-- **0 conjectures generated, 0 verified**
-- This step requires a running Ollama instance with a suitable model (e.g., `codellama`)
+- **20 gaps** → **14 conjectures** (6 gaps produced no parseable Lean output) → **14 novel** → **0 verified** (0%)
+- Model: `gpt-oss:20b` (20.9B params, MXFP4 quantization, local GPU)
+- Cycle duration: ~110 min (~5 min/candidate with 3 retries)
+- Failure breakdown: 13 Lean verification timeouts, 29 verification failures
+- Proof engine limited to `exact?`, `aesop`, `simp` — insufficient for non-trivial proofs
+
+### Conjecture Quality Assessment
+
+The LLM produced **mathematically meaningful** Lean 4 statements for several gaps:
+
+| Conjecture | Assessment |
+|------------|------------|
+| `Ring.map_jacobson_of_bijective` | Jacobson radical preservation under bijective ring maps — plausible theorem |
+| `Ring.jacobson_pi_le` | Product inequality for Jacobson radical — structurally correct |
+| `Ring.jacobson_eq_bot_of_injective` | Vanishing under injection — likely needs stronger hypotheses |
+| `Ring.comap_jacobson_of_ker_le` | Preimage of Jacobson radical — well-formed |
+| `Module.rank_le_domain` | Module rank bound under linear maps — meaningful |
+| `Ring.ofIsUnitOrEqZero` | Field dichotomy (IsUnit or zero) — known result |
+| `Subgroup.single_mem_pi` / `Submodule.single_mem_pi` | Pi membership — correct pattern |
+| `Submodule.pi_span` | Span commutes with pi — plausible |
+
+However, 5/14 conjectures were nonsensical `Coe SpecialLinearGroup GeneralLinearGroup` instances — the LLM hallucinated the same coercion pattern across different family prefixes due to garbage gap inputs.
+
+### Why 0% Verification
+
+Two distinct failure modes:
+1. **Bad statements** (5/14): Coercion instance hallucinations that Lean can't even type-check efficiently (timeout)
+2. **Good statements, weak proofs** (9/14): Mathematically plausible conjectures where `exact?`/`aesop`/`simp` are too weak — these theorems require multi-step proofs with imports and lemma chains
 
 ## Post-Cutoff Validation
 
@@ -54,10 +80,12 @@ The absolute count gate (>= 20 non-trivial) requires expanding the candidate poo
 
 ## Recommendations
 
-1. **Improve gap filtering**: Add heuristics to deprioritize coercion injectivity (`_injective` suffix on type-cast declarations), instance derivations (`addCommGroup`, `addCommMonoid`, `inhabited`), and mechanical simp lemmas (`congr_simp`). This alone could push precision above 60%.
+1. **Improve gap filtering** (Phase 1 bottleneck): Add heuristics to deprioritize coercion injectivity (`_injective` suffix on type-cast declarations), instance derivations (`addCommGroup`, `addCommMonoid`, `inhabited`), and mechanical simp lemmas (`congr_simp`). This alone could push precision above 60% and remove garbage inputs that cause LLM hallucinations.
 
 2. **Expand candidate pool**: Increase `top_k` beyond 20 or broaden family prefixes to surface more non-trivial candidates and meet the absolute count threshold.
 
-3. **Re-run with Ollama**: Set up Ollama with a code-capable model to evaluate LLM-generated conjectures. The template baseline confirms the pipeline works; real conjectures are needed to assess discovery potential.
+3. **Strengthen proof engine** (Phase 2 bottleneck): The current engine only tries 3 generic tactics (`exact?`, `aesop`, `simp`). The Jacobson radical conjectures and module rank bounds are plausible but require multi-step proofs. Consider: (a) LLM-generated proof sketches alongside conjectures, (b) tactic chains with intermediate `have` steps, (c) targeted `apply` with known lemmas from the dependency graph.
 
 4. **Weighted scoring refinement**: The current dependency-weighted scoring ranks trivial declarations highly. Consider penalizing candidates whose source declarations are auto-generated (instance, coercion, simp).
+
+5. **Evaluate with a stronger model**: The `gpt-oss:20b` model produced 5/14 hallucinated coercion instances. A larger or more math-specialized model may improve both statement quality and could generate proof hints.

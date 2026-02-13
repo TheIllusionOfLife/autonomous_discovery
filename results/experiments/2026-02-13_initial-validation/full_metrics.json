@@ -28,14 +28,27 @@
   },
   "phase2_ollama": {
     "gap_count": 20,
-    "conjecture_count": 0,
-    "novel_count": 0,
+    "conjecture_count": 14,
+    "generation_failures": 6,
+    "novel_count": 14,
     "duplicate_count": 0,
     "verification_success_count": 0,
     "success_rate": 0.0,
-    "cycle_duration_ms": 217066.159,
-    "ollama_available": false,
-    "failure_reason": "Ollama service not running (HTTP 404 on localhost:11434)"
+    "cycle_duration_ms": 6580195.087,
+    "ollama_available": true,
+    "model": "gpt-oss:20b",
+    "failure_counts": {
+      "timeout": 13,
+      "verification_failed": 29
+    },
+    "notable_conjectures": [
+      "Ring.map_jacobson_of_bijective — Jacobson radical preservation under bijective ring maps",
+      "Ring.jacobson_pi_le — Product inequality for ring Jacobson radical",
+      "Ring.jacobson_eq_bot_of_injective — Vanishing Jacobson radical under injection",
+      "Ring.comap_jacobson_of_ker_le — Preimage of Jacobson radical",
+      "Module.rank_le_domain — Module rank bound under linear maps",
+      "Ring.ofIsUnitOrEqZero — Field dichotomy (IsUnit or zero)"
+    ]
   },
   "post_cutoff": {
     "go_no_go_status": "go",
