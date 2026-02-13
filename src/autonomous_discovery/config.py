@@ -14,7 +14,7 @@ class LLMConfig:
     """Configuration for LLM inference via Ollama."""
 
     ollama_base_url: str = "http://localhost:11434"
-    model_name: str = "gpt-oss-20b"
+    model_name: str = "gpt-oss:20b"
     temperature: float = 0.7
     max_tokens: int = 2048
     parse_retries: int = 2

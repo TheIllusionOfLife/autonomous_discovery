@@ -74,7 +74,7 @@ class TestGenerate:
         assert "Ring_mul_assoc" in c.lean_statement
         assert "CommRing R" in c.lean_statement
         assert ":= by" not in c.lean_statement
-        assert c.model_id == "gpt-oss-20b"
+        assert c.model_id == "gpt-oss:20b"
         assert c.temperature == 0.7
 
     @patch("autonomous_discovery.conjecture_generator.llm_generator.httpx")
