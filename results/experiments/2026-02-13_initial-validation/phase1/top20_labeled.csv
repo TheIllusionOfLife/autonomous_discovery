@@ -1,0 +1,21 @@
+missing_decl,source_decl,target_family,score,label_non_trivial,notes
+Ring.map_jacobson_of_bijective,Module.map_jacobson_of_bijective,Ring.,0.698806,1,Jacobson radical preservation under bijective ring maps — structural
+Ring.jacobson_pi_le,Module.jacobson_pi_le,Ring.,0.698802,1,Product inequality for ring Jacobson radical — non-trivial
+Ring.jacobson_eq_bot_of_injective,Module.jacobson_eq_bot_of_injective,Ring.,0.698737,1,Vanishing under injective maps — structural
+Ring.comap_jacobson_of_ker_le,Module.comap_jacobson_of_ker_le,Ring.,0.698728,1,Preimage of Jacobson radical — non-trivial
+Ring.DirectLimit.congr_simp,Module.DirectLimit.congr_simp,Ring.,0.696990,0,Mechanical simp lemma for congruence
+Ring.comap_jacobson_of_bijective,Module.comap_jacobson_of_bijective,Ring.,0.583018,1,Preimage under bijection — non-trivial
+Ring.jacobson_pi_eq_bot,Module.jacobson_pi_eq_bot,Ring.,0.576587,1,Equality variant of product bound — non-trivial
+Module.jacobson_smul_top_le,Ring.jacobson_smul_top_le,Module.,0.559579,1,Scalar multiplication bound — structural
+Module.coe_jacobson_quotient,Ring.coe_jacobson_quotient,Module.,0.547044,0,Coercion in quotient — mechanical
+Ring.toDivInvMonoid_injective,Group.toDivInvMonoid_injective,Ring.,0.546379,0,Type coercion injectivity — trivial
+Group.toNonAssocRing_injective,Ring.toNonAssocRing_injective,Group.,0.532841,0,Type coercion injectivity — trivial
+Module.toNonAssocRing_injective,Ring.toNonAssocRing_injective,Module.,0.532841,0,Type coercion injectivity — trivial
+Ring.ext',Module.ext',Ring.,0.511787,1,Extensionality for rings — structural
+Ring.DirectLimit.inhabited,Module.DirectLimit.inhabited,Ring.,0.507501,0,Inhabited instance — mechanical
+Module.jacobson_eq_sInf_isMaximal,Ring.jacobson_eq_sInf_isMaximal,Module.,0.489222,1,Jacobson radical characterization — non-trivial
+Ring.DirectLimit.congr.congr_simp,Module.DirectLimit.congr.congr_simp,Ring.,0.476271,0,Nested simp lemma — mechanical
+Ring.DirectLimit.addCommGroup,Module.DirectLimit.addCommGroup,Ring.,0.453363,0,Instance derivation — mechanical
+Ring.DirectLimit.addCommMonoid,Module.DirectLimit.addCommMonoid,Ring.,0.447163,0,Instance derivation — mechanical
+Group.toNonUnitalRing_injective,Ring.toNonUnitalRing_injective,Group.,0.438226,0,Type coercion injectivity — trivial
+Module.toNonUnitalRing_injective,Ring.toNonUnitalRing_injective,Module.,0.438226,0,Type coercion injectivity — trivial

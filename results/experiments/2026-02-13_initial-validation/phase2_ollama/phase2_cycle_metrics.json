@@ -1,0 +1,33 @@
+{
+  "artifacts": {
+    "attempts_path": "results/experiments/2026-02-13_initial-validation/phase2_ollama/phase2_attempts.jsonl",
+    "metrics_path": "results/experiments/2026-02-13_initial-validation/phase2_ollama/phase2_cycle_metrics.json"
+  },
+  "conjecture_count": 14,
+  "cycle_duration_ms": 6580195.087,
+  "duplicate_count": 0,
+  "failure_counts": {
+    "timeout": 13,
+    "verification_failed": 29
+  },
+  "filter_pass_count": 14,
+  "filter_reject_reasons": {},
+  "filtered_out_count": 0,
+  "gap_count": 20,
+  "graph_cache_hit": false,
+  "lean_available": true,
+  "novel_count": 14,
+  "novelty_reason_counts": {
+    "novel": 14
+  },
+  "novelty_unknown_count": 0,
+  "proof_retry_budget": 3,
+  "runtime_ready": true,
+  "sandbox_available": false,
+  "skipped_reason": null,
+  "success_rate": 0.0,
+  "top_k": 20,
+  "verification_mode": "trusted_local",
+  "verification_success_count": 0,
+  "verifier_available": true
+}

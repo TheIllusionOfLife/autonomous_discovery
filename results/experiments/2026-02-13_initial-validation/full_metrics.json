@@ -1,0 +1,65 @@
+{
+  "experiment": "2026-02-13_initial-validation",
+  "overall_go_no_go": "no_go",
+  "phase1": {
+    "go_no_go_status": "no_go",
+    "non_trivial_count": 9,
+    "top20_precision": 0.45,
+    "detection_rate": 0.50,
+    "evaluated_module_count": 4,
+    "modules_with_non_trivial_gaps_count": 2,
+    "candidate_count": 20,
+    "go_no_go_checks": {
+      "minimum_non_trivial_count_ok": false,
+      "primary_detection_rate_ok": true,
+      "secondary_topk_precision_ok": false
+    }
+  },
+  "phase2_template": {
+    "gap_count": 20,
+    "conjecture_count": 20,
+    "novel_count": 1,
+    "duplicate_count": 19,
+    "verification_success_count": 1,
+    "success_rate": 1.0,
+    "cycle_duration_ms": 204034.479,
+    "lean_available": true,
+    "runtime_ready": true
+  },
+  "phase2_ollama": {
+    "gap_count": 20,
+    "conjecture_count": 14,
+    "generation_failures": 6,
+    "novel_count": 14,
+    "duplicate_count": 0,
+    "verification_success_count": 0,
+    "success_rate": 0.0,
+    "cycle_duration_ms": 6580195.087,
+    "ollama_available": true,
+    "model": "gpt-oss:20b",
+    "failure_counts": {
+      "timeout": 13,
+      "verification_failed": 29
+    },
+    "notable_conjectures": [
+      "Ring.map_jacobson_of_bijective — Jacobson radical preservation under bijective ring maps",
+      "Ring.jacobson_pi_le — Product inequality for ring Jacobson radical",
+      "Ring.jacobson_eq_bot_of_injective — Vanishing Jacobson radical under injection",
+      "Ring.comap_jacobson_of_ker_le — Preimage of Jacobson radical",
+      "Module.rank_le_domain — Module rank bound under linear maps",
+      "Ring.ofIsUnitOrEqZero — Field dichotomy (IsUnit or zero)"
+    ]
+  },
+  "post_cutoff": {
+    "go_no_go_status": "go",
+    "total_algebra_theorems": 18150,
+    "post_cutoff_additions": 28991,
+    "threshold": 30
+  },
+  "thresholds": {
+    "min_detection_rate": 0.05,
+    "min_top20_precision": 0.60,
+    "min_nontrivial_gaps": 20,
+    "min_post_cutoff_theorems": 30
+  }
+}
